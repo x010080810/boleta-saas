@@ -24,6 +24,36 @@ def _connect_smtp(host: str, port: int, user: str, password: str, timeout: int =
     return server
 
 
+def _get_sendgrid_api_key() -> str:
+    return os.environ.get("SENDGRID_API_KEY") or settings.SENDGRID_API_KEY or ""
+
+
+def _send_via_sendgrid(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    from_email: str,
+    from_name: str = "",
+    pdf_path: str = "",
+) -> dict:
+    api_key = _get_sendgrid_api_key()
+    if not api_key:
+        return {"success": False, "error": "SENDGRID_API_KEY no configurado"}
+
+    try:
+        from app.services.sendgrid_sender import send_via_sendgrid
+        return send_via_sendgrid(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_body,
+            from_email=from_email,
+            from_name=from_name,
+            pdf_path=pdf_path or None,
+        )
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def _build_headers(msg: MIMEMultipart, from_email: str, from_name: str, to_email: str) -> None:
     msg["Message-ID"] = f"<{uuid.uuid4().hex}@{from_email.split('@')[-1] or 'boletasapp.com'}>"
     msg["Date"] = formatdate(timeval=datetime.now(timezone.utc).timestamp(), localtime=False, usegmt=True)
@@ -58,6 +88,15 @@ def send_payslip_email(
     pdf_path: str,
     pdf_password: str,
 ) -> dict:
+    sg_key = _get_sendgrid_api_key()
+    if sg_key:
+        subject = (subject_template or "Boleta de Pago - {{empresa}}").replace("{{empresa}}", company_name).replace("{{empleado}}", employee_name)
+        body = (body_template or "").replace("{{empleado}}", employee_name).replace("{{empresa}}", company_name).replace("{{periodo}}", periodo).replace("{{ticket}}", ticket)
+        return _send_via_sendgrid(
+            to_email=to_email, subject=subject, html_body=body,
+            from_email=from_email, from_name=from_name, pdf_path=pdf_path,
+        )
+
     if not all([smtp_host, smtp_user, smtp_password, from_email, to_email]):
         return {"success": False, "error": "Configuración SMTP incompleta"}
 
@@ -116,6 +155,45 @@ def send_payslip_email(
         return {"success": False, "error": str(e)}
 
 
+def _render_notification_body(ticket, tipo_planilla, periodo, empresa, usuario,
+                               total_registros, total_procesados, total_observaciones,
+                               total_enviados, total_fallidos, total_sin_saldo):
+    return f"""
+    <html><body style="font-family: Arial, sans-serif;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50;">Procesamiento de Planilla Completado</h2>
+        <p>Estimado(a) <strong>{usuario}</strong>,</p>
+        <p>El procesamiento de su planilla ha sido completado exitosamente.</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Ticket</strong></td>
+                <td style="padding: 8px;">{ticket}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Tipo</strong></td>
+                <td style="padding: 8px;">{tipo_planilla}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Periodo</strong></td>
+                <td style="padding: 8px;">{periodo}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Total registros</strong></td>
+                <td style="padding: 8px;">{total_registros}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Procesados</strong></td>
+                <td style="padding: 8px;">{total_procesados}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Observaciones</strong></td>
+                <td style="padding: 8px; color: {'orange' if total_observaciones > 0 else 'green'};">{total_observaciones}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Envios exitosos</strong></td>
+                <td style="padding: 8px; color: green;">{total_enviados}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Envios fallidos</strong></td>
+                <td style="padding: 8px; color: {'red' if total_fallidos > 0 else 'green'};">{total_fallidos}</td></tr>
+            <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Sin saldo</strong></td>
+                <td style="padding: 8px; color: {'red' if total_sin_saldo > 0 else 'green'};">{total_sin_saldo}</td></tr>
+        </table>
+
+        <p>Puede consultar el reporte detallado ingresando al sistema con el ticket: <strong>{ticket}</strong></p>
+        <br>
+        <p>Saludos cordiales,<br><strong>Sistema de Boletas de Pago</strong></p>
+    </div>
+    </body></html>
+    """
+
+
 def send_notification(
     smtp_host: str,
     smtp_port: int,
@@ -136,6 +214,19 @@ def send_notification(
     total_fallidos: int,
     total_sin_saldo: int,
 ) -> dict:
+    sg_key = _get_sendgrid_api_key()
+    if sg_key:
+        body = _render_notification_body(ticket, tipo_planilla, periodo, empresa, usuario,
+                                          total_registros, total_procesados, total_observaciones,
+                                          total_enviados, total_fallidos, total_sin_saldo)
+        return _send_via_sendgrid(
+            to_email=to_email,
+            subject=f"Procesamiento de Planilla Completado - Ticket #{ticket} | {empresa}",
+            html_body=body,
+            from_email=from_email,
+            from_name=from_name,
+        )
+
     if not all([smtp_host, smtp_user, smtp_password, from_email, to_email]):
         return {"success": False, "error": "Configuración SMTP incompleta"}
 
@@ -211,6 +302,43 @@ def send_welcome_email(
     licencia_inicio: str = "",
     licencia_fin: str = "",
 ) -> dict:
+    sg_key = _get_sendgrid_api_key()
+    if sg_key:
+        body = f"""
+        <html><body style="font-family: Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">Boleta SaaS</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0;">Sistema de Boletas de Pago</p>
+            </div>
+            <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+                <p>Estimado(a) <strong>{admin_name}</strong>,</p>
+                <p>Su empresa <strong>{company_name}</strong> (RUC: {company_ruc}) ha sido registrada exitosamente en <strong>Boleta SaaS</strong>.</p>
+                <div style="background: #f0fdf4; border: 1px solid #22c55e; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #166534; margin: 0 0 10px;">Plan de Prueba Gratuito</h3>
+                    <table style="width: 100%;">
+                        <tr><td style="padding: 4px 0;"><strong>Envios mensuales:</strong></td><td style="text-align: right;">{plan_envios} envios/mes</td></tr>
+                        <tr><td style="padding: 4px 0;"><strong>Inicio:</strong></td><td style="text-align: right;">{licencia_inicio}</td></tr>
+                        <tr><td style="padding: 4px 0;"><strong>Vence:</strong></td><td style="text-align: right;">{licencia_fin}</td></tr>
+                        <tr><td style="padding: 4px 0;"><strong>Vigencia:</strong></td><td style="text-align: right;">{dias_vigencia} dias</td></tr>
+                    </table>
+                </div>
+                <p>Puede ingresar al sistema con su correo electronico:</p>
+                <p style="text-align: center; font-size: 16px; color: #3b82f6;"><strong>{to_email}</strong></p>
+                <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">Si usted no realizo este registro, ignore este mensaje.</p>
+                <p style="color: #6b7280; font-size: 12px;">Saludos cordiales,<br><strong>Boleta SaaS</strong></p>
+            </div>
+        </div>
+        </body></html>
+        """
+        return _send_via_sendgrid(
+            to_email=to_email,
+            subject=f"Bienvenido a Boleta SaaS - {company_name}",
+            html_body=body,
+            from_email=system_from_email,
+            from_name=system_from_name,
+        )
+
     if not all([system_smtp_host, system_smtp_user, system_smtp_password, system_from_email, to_email]):
         return {"success": False, "error": "Configuración SMTP del sistema incompleta"}
 
@@ -283,6 +411,38 @@ def send_new_company_notification(
     licencia_inicio: str = "",
     licencia_fin: str = "",
 ) -> dict:
+    sg_key = _get_sendgrid_api_key()
+    if sg_key:
+        fecha = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
+        body = f"""
+        <html><body style="font-family: Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 25px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h2 style="color: white; margin: 0;">Nueva Empresa Registrada</h2>
+            </div>
+            <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+                <p>Se ha registrado una nueva empresa en el sistema:</p>
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Empresa</strong></td><td style="padding: 8px;">{company_name}</td></tr>
+                    <tr><td style="padding: 8px; background: #f8f9fa;"><strong>RUC</strong></td><td style="padding: 8px;">{company_ruc}</td></tr>
+                    <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Admin</strong></td><td style="padding: 8px;">{admin_name} ({admin_email})</td></tr>
+                    <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Plan</strong></td><td style="padding: 8px;">{plan_envios} envios/mes</td></tr>
+                    <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Inicio licencia</strong></td><td style="padding: 8px;">{licencia_inicio}</td></tr>
+                    <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Fin licencia</strong></td><td style="padding: 8px;">{licencia_fin}</td></tr>
+                    <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Fecha registro</strong></td><td style="padding: 8px;">{fecha}</td></tr>
+                </table>
+            </div>
+        </div>
+        </body></html>
+        """
+        return _send_via_sendgrid(
+            to_email=to_email,
+            subject=f"Nueva empresa registrada - {company_name}",
+            html_body=body,
+            from_email=system_from_email,
+            from_name=system_from_name,
+        )
+
     if not all([system_smtp_host, system_smtp_user, system_smtp_password, system_from_email, to_email]):
         return {"success": False, "error": "Configuración SMTP del sistema incompleta"}
 
@@ -330,9 +490,7 @@ def send_new_company_notification(
 
         _attach_html_alternative(msg, body)
 
-        server = smtplib.SMTP(system_smtp_host, system_smtp_port, timeout=30)
-        server.starttls()
-        server.login(system_smtp_user, system_smtp_password)
+        server = _connect_smtp(system_smtp_host, system_smtp_port, system_smtp_user, system_smtp_password)
         server.send_message(msg)
         server.quit()
 
@@ -356,6 +514,36 @@ def send_license_expiry_warning(
     dias: int,
     admin_name: str,
 ) -> dict:
+    sg_key = _get_sendgrid_api_key()
+    if sg_key:
+        body = f"""
+        <html><body style="font-family: Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <h3 style="color: #856404; margin: 0;">Licencia proxima a vencer</h3>
+            </div>
+            <p>Estimado(a) <strong>{admin_name}</strong>,</p>
+            <p>Su licencia de uso del Sistema de Boletas de Pago esta proxima a vencer.</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Empresa</strong></td><td style="padding: 8px;">{empresa}</td></tr>
+                <tr><td style="padding: 8px; background: #f8f9fa;"><strong>RUC</strong></td><td style="padding: 8px;">{ruc}</td></tr>
+                <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Plan</strong></td><td style="padding: 8px;">{plan} envios/mes</td></tr>
+                <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Vigente hasta</strong></td><td style="padding: 8px;">{fin}</td></tr>
+                <tr><td style="padding: 8px; background: #f8f9fa;"><strong>Dias restantes</strong></td><td style="padding: 8px; color: red;"><strong>{dias} dias</strong></td></tr>
+            </table>
+            <p>Para renovar su licencia, contacte a su ejecutivo comercial.</p>
+            <br><p>Saludos cordiales,<br><strong>Sistema de Boletas de Pago</strong></p>
+        </div>
+        </body></html>
+        """
+        return _send_via_sendgrid(
+            to_email=to_email,
+            subject=f"Su licencia del Sistema de Boletas vence en {dias} dias",
+            html_body=body,
+            from_email=from_email,
+            from_name=from_name,
+        )
+
     if not all([smtp_host, smtp_user, smtp_password, from_email, to_email]):
         return {"success": False, "error": "Configuración SMTP incompleta"}
 

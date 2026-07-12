@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     SYSTEM_SMTP_FROM_EMAIL: str = "noreply@boletasaas.com"
     SYSTEM_SMTP_FROM_NAME: str = "Boleta SaaS"
 
+    # SendGrid (alternativa a SMTP para entornos que bloquean puertos SMTP)
+    SENDGRID_API_KEY: str = ""
+
     # Supabase Storage (S3-compatible)
     SUPABASE_S3_ENDPOINT: str = ""
     SUPABASE_S3_ACCESS_KEY: str = ""
