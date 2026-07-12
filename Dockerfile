@@ -17,4 +17,4 @@ RUN mkdir -p /tmp/uploads /tmp/output /tmp/backups
 
 EXPOSE 8000
 
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+CMD celery -A app.core.celery_app worker -l info & celery -A app.core.celery_app beat -l info & exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
