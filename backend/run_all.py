@@ -1,38 +1,33 @@
 import subprocess
 import sys
 import os
-import time
 import signal
-
-processes = []
-
-def signal_handler(signum, frame):
-    for p in processes:
-        p.terminate()
-    sys.exit(0)
+import time
 
 def main():
     port = os.environ.get("PORT", "8080")
 
-    api = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", port],
-    )
-    processes.append(api)
-
     worker = subprocess.Popen(
         [sys.executable, "-m", "celery", "-A", "app.core.celery_app", "worker", "-l", "info"],
     )
-    processes.append(worker)
 
     beat = subprocess.Popen(
         [sys.executable, "-m", "celery", "-A", "app.core.celery_app", "beat", "-l", "info"],
     )
-    processes.append(beat)
 
-    for p in processes:
-        p.wait()
+    def cleanup(signum, frame):
+        worker.terminate()
+        beat.terminate()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, cleanup)
+    signal.signal(signal.SIGTERM, cleanup)
+
+    os.execvpe(
+        sys.executable,
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", port],
+        os.environ,
+    )
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
     main()
