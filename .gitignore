@@ -35,3 +35,21 @@ frontend/build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Sensitive files
+claves_no_migrar.txt
+
+# Backups
+backend/backups/*.sql.gz
+backend/backups/*.sql
+
+# Celery
+backend/celerybeat-schedule
+backend/celerybeat-schedule.db
+
+# Demo files
+backend/demo_*
+*.pdf
+*.xls
+*.xlsx
+*.png
