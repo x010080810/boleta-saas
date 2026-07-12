@@ -13,9 +13,4 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
-ARG COMMAND
-ENV COMMAND=$COMMAND
-
 RUN mkdir -p /tmp/uploads /tmp/output /tmp/backups
-
-CMD python $COMMAND
