@@ -1,0 +1,15 @@
+.git
+.gitignore
+*.md
+*.docx
+frontend/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+backend/venv/
+backend/__pycache__/
+backend/backups/
+backend/celerybeat-schedule
