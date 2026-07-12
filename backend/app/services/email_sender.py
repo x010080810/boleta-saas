@@ -14,6 +14,16 @@ from jinja2 import Environment, FileSystemLoader
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "email")
 
 
+def _connect_smtp(host: str, port: int, user: str, password: str, timeout: int = 30):
+    if port == 465:
+        server = smtplib.SMTP_SSL(host, port, timeout=timeout)
+    else:
+        server = smtplib.SMTP(host, port, timeout=timeout)
+        server.starttls()
+    server.login(user, password)
+    return server
+
+
 def _build_headers(msg: MIMEMultipart, from_email: str, from_name: str, to_email: str) -> None:
     msg["Message-ID"] = f"<{uuid.uuid4().hex}@{from_email.split('@')[-1] or 'boletasapp.com'}>"
     msg["Date"] = formatdate(timeval=datetime.now(timezone.utc).timestamp(), localtime=False, usegmt=True)
@@ -96,9 +106,7 @@ def send_payslip_email(
                 )
                 msg.attach(part)
 
-        server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
-        server.starttls()
-        server.login(smtp_user, smtp_password)
+        server = _connect_smtp(smtp_host, smtp_port, smtp_user, smtp_password)
         server.send_message(msg)
         server.quit()
 
@@ -177,9 +185,7 @@ def send_notification(
 
         _attach_html_alternative(msg, body)
 
-        server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
-        server.starttls()
-        server.login(smtp_user, smtp_password)
+        server = _connect_smtp(smtp_host, smtp_port, smtp_user, smtp_password)
         server.send_message(msg)
         server.quit()
 
@@ -252,9 +258,7 @@ def send_welcome_email(
 
         _attach_html_alternative(msg, body)
 
-        server = smtplib.SMTP(system_smtp_host, system_smtp_port, timeout=30)
-        server.starttls()
-        server.login(system_smtp_user, system_smtp_password)
+        server = _connect_smtp(system_smtp_host, system_smtp_port, system_smtp_user, system_smtp_password)
         server.send_message(msg)
         server.quit()
 
@@ -395,9 +399,7 @@ def send_license_expiry_warning(
 
         _attach_html_alternative(msg, body)
 
-        server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
-        server.starttls()
-        server.login(smtp_user, smtp_password)
+        server = _connect_smtp(smtp_host, smtp_port, smtp_user, smtp_password)
         server.send_message(msg)
         server.quit()
 

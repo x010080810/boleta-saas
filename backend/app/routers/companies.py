@@ -22,8 +22,11 @@ async def test_smtp_connection(req: SmtpTestRequest, current_user: dict = Depend
         msg["From"] = f"{req.from_name} <{req.from_email}>" if req.from_name else req.from_email
         msg["To"] = req.test_email
 
-        server = smtplib.SMTP(req.smtp_host, req.smtp_port, timeout=15)
-        server.starttls()
+        if req.smtp_port == 465:
+            server = smtplib.SMTP_SSL(req.smtp_host, req.smtp_port, timeout=15)
+        else:
+            server = smtplib.SMTP(req.smtp_host, req.smtp_port, timeout=15)
+            server.starttls()
         server.login(req.smtp_user, req.smtp_password)
         server.send_message(msg)
         server.quit()
