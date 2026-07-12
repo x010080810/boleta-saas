@@ -17,4 +17,4 @@ RUN mkdir -p /tmp/uploads /tmp/output /tmp/backups
 
 EXPOSE 8000
 
-CMD python run_all.py
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
