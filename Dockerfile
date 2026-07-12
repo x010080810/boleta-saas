@@ -17,6 +17,4 @@ RUN mkdir -p /tmp/uploads /tmp/output /tmp/backups
 
 EXPOSE 8000
 
-RUN chmod +x start.sh
-
-CMD ./start.sh
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
