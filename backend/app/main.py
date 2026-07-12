@@ -19,7 +19,12 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    try:
+        await init_db()
+        app.state.db_ready = True
+    except Exception as e:
+        logging.warning(f"Database initialization failed: {e}")
+        app.state.db_ready = False
     yield
 
 app = FastAPI(
