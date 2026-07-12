@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import date
+from app.core.password_policy import validate_password
 
 
 class CompanyUpdate(BaseModel):
@@ -57,6 +58,14 @@ class AdminCreateUserRequest(BaseModel):
     full_name: str
     company_id: str
     role: str = "admin"
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        valid, msg = validate_password(v)
+        if not valid:
+            raise ValueError(msg)
+        return v
 
 
 class AdminAssignUserRequest(BaseModel):

@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
 from typing import Optional
+from app.core.password_policy import validate_password
 
 
 class LoginRequest(BaseModel):
@@ -21,6 +22,14 @@ class RegisterCompanyRequest(BaseModel):
     admin_email: str
     admin_password: str
     admin_full_name: str
+
+    @field_validator("admin_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        valid, msg = validate_password(v)
+        if not valid:
+            raise ValueError(msg)
+        return v
 
 
 class SuperAdminLoginRequest(BaseModel):

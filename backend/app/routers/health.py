@@ -1,3 +1,5 @@
+import secrets
+import string
 from fastapi import APIRouter, Request, HTTPException, Header
 from datetime import datetime, timezone
 from sqlalchemy import select
@@ -6,6 +8,11 @@ from app.core.security import get_password_hash
 from app.models.super_admin import SuperAdmin
 from app.models.system_settings import SystemSetting
 from app.core.config import settings
+
+
+def _generate_secure_password(length=16):
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 router = APIRouter()
 
@@ -31,10 +38,11 @@ async def setup(x_setup_key: str = Header(alias="X-Setup-Key")):
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=409, detail="Super admin ya existe")
 
+        raw_password = _generate_secure_password()
         super_admin = SuperAdmin(
             id="admin-001",
             email="admin@sistema.com",
-            hashed_password=get_password_hash("123456"),
+            hashed_password=get_password_hash(raw_password),
             full_name="Super Administrador",
         )
         db.add(super_admin)
@@ -60,4 +68,5 @@ async def setup(x_setup_key: str = Header(alias="X-Setup-Key")):
     return {
         "message": "Seed completado exitosamente",
         "admin_email": "admin@sistema.com",
+        "admin_password": raw_password,
     }
