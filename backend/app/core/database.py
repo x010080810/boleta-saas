@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy import create_engine
@@ -27,11 +28,14 @@ async def get_db():
 
 
 async def init_db():
-    async with engine.begin() as conn:
-        from app.models.company import Company, CompanyUser, UserCompany, Employee, EmployeeCompany
-        from app.models.payroll import PayrollUpload, PaySlip, UnregisteredWorker
-        from app.models.email_log import EmailLog
-        from app.models.license import LicenseHistory
-        from app.models.super_admin import SuperAdmin
-        from app.models.quota import MonthlySendQuota
-        await conn.run_sync(Base.metadata.create_all)
+    from app.models.company import Company, CompanyUser, UserCompany, Employee, EmployeeCompany
+    from app.models.payroll import PayrollUpload, PaySlip, UnregisteredWorker
+    from app.models.email_log import EmailLog
+    from app.models.license import LicenseHistory
+    from app.models.super_admin import SuperAdmin
+    from app.models.quota import MonthlySendQuota
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception:
+        logging.warning("Database tables may already exist, continuing...")
