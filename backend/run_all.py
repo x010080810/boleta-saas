@@ -1,35 +1,44 @@
 import subprocess
 import sys
 import os
+import time
+import signal
+
+processes = []
+
+def signal_handler(signum, frame):
+    for p in processes:
+        p.terminate()
+    sys.exit(0)
 
 def main():
     port = os.environ.get("PORT", "8080")
-    processes = []
 
-    p1 = subprocess.Popen([
-        sys.executable, "-m", "uvicorn",
-        "app.main:app",
-        "--host", "0.0.0.0",
-        "--port", port,
-    ])
-    processes.append(p1)
+    api = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", port],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    processes.append(api)
 
-    p2 = subprocess.Popen([
-        sys.executable, "-m", "celery",
-        "-A", "app.core.celery_app",
-        "worker", "-l", "info",
-    ])
-    processes.append(p2)
+    worker = subprocess.Popen(
+        [sys.executable, "-m", "celery", "-A", "app.core.celery_app", "worker", "-l", "info"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    processes.append(worker)
 
-    p3 = subprocess.Popen([
-        sys.executable, "-m", "celery",
-        "-A", "app.core.celery_app",
-        "beat", "-l", "info",
-    ])
-    processes.append(p3)
+    beat = subprocess.Popen(
+        [sys.executable, "-m", "celery", "-A", "app.core.celery_app", "beat", "-l", "info"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    processes.append(beat)
 
     for p in processes:
         p.wait()
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     main()
