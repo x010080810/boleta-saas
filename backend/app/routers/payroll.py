@@ -77,6 +77,14 @@ async def upload_payroll(
     if len(content) > max_size:
         raise HTTPException(status_code=400, detail=t("file_too_large", lang, max_size=settings.MAX_UPLOAD_SIZE_MB))
 
+    if len(content) < 8:
+        raise HTTPException(status_code=400, detail=t("invalid_format", lang))
+    magic = content[:8]
+    is_xls = magic[:8] == b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
+    is_xlsx = magic[:4] == b'\x50\x4b\x03\x04'
+    if not is_xls and not is_xlsx:
+        raise HTTPException(status_code=400, detail=t("invalid_format", lang))
+
     filepath = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}_{file.filename}")
     with open(filepath, "wb") as f:
         f.write(content)
@@ -423,7 +431,9 @@ async def download_all_boletas(
 
 
 @router.post("/uploads/{upload_id}/resend")
+@limiter.limit("3/minute")
 async def resend_boletas(
+    request: Request,
     company_id: str,
     upload_id: str,
     req: ResendRequest,
@@ -559,7 +569,9 @@ async def resend_boletas(
 
 
 @router.post("/boletas/{pay_slip_id}/resend")
+@limiter.limit("5/minute")
 async def resend_individual_boleta(
+    request: Request,
     company_id: str,
     pay_slip_id: str,
     current_user: dict = Depends(get_current_user),

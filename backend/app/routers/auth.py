@@ -182,7 +182,8 @@ async def super_admin_login(req: LoginRequest, request: Request, db: AsyncSessio
 
 
 @router.post("/refresh")
-async def refresh_token(token: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def refresh_token(request: Request, token: str, db: AsyncSession = Depends(get_db)):
     from app.core.security import decode_token, create_access_token, create_refresh_token
     payload = decode_token(token)
     if payload.get("type") != "refresh":

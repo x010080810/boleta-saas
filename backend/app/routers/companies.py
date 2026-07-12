@@ -109,6 +109,7 @@ async def get_company(
         "smtp_host": company.smtp_host,
         "smtp_port": company.smtp_port,
         "smtp_user": company.smtp_user,
+        "smtp_has_password": bool(company.smtp_password),
         "smtp_from_email": company.smtp_from_email,
         "smtp_from_name": company.smtp_from_name,
         "email_subject_template": company.email_subject_template,

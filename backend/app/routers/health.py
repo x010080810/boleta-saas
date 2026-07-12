@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Header
 from datetime import datetime, timezone
 from sqlalchemy import select
 from app.core.database import async_session_factory
 from app.core.security import get_password_hash
 from app.models.super_admin import SuperAdmin
 from app.models.system_settings import SystemSetting
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -20,7 +21,9 @@ async def health_check(request: Request):
 
 
 @router.post("/setup")
-async def setup():
+async def setup(x_setup_key: str = Header(alias="X-Setup-Key")):
+    if x_setup_key != settings.SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid setup key")
     async with async_session_factory() as db:
         existing = await db.execute(
             select(SuperAdmin).where(SuperAdmin.email == "admin@sistema.com")
@@ -57,5 +60,4 @@ async def setup():
     return {
         "message": "Seed completado exitosamente",
         "admin_email": "admin@sistema.com",
-        "admin_password": "123456",
     }
