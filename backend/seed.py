@@ -1,4 +1,6 @@
 import asyncio
+import secrets
+import string
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select
 from app.core.database import Base
@@ -13,6 +15,9 @@ from app.models.license import LicenseHistory
 from app.core.config import settings
 from datetime import datetime, timezone
 
+NEW_ADMIN_EMAIL = "jn835513@gmail.com"
+OLD_ADMIN_EMAIL = "admin@sistema.com"
+
 engine = create_async_engine(settings.DATABASE_URL, echo=True)
 session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -22,20 +27,32 @@ async def seed():
         await conn.run_sync(Base.metadata.create_all)
 
     async with session_factory() as db:
-        existing = await db.execute(
-            select(SuperAdmin).where(SuperAdmin.email == "admin@sistema.com")
-        )
-        if existing.scalar_one_or_none():
-            print("Super admin ya existe. Omitiendo seed.")
-            return
+        old = await db.execute(select(SuperAdmin).where(SuperAdmin.email == OLD_ADMIN_EMAIL))
+        old_admin = old.scalar_one_or_none()
+        if old_admin:
+            old_admin.is_active = False
+            print(f"Cuenta antigua ({OLD_ADMIN_EMAIL}) desactivada.")
 
-        super_admin = SuperAdmin(
-            id="admin-001",
-            email="admin@sistema.com",
-            hashed_password=get_password_hash("123456"),
-            full_name="Super Administrador",
+        existing = await db.execute(select(SuperAdmin).where(SuperAdmin.email == NEW_ADMIN_EMAIL))
+        new_admin = existing.scalar_one_or_none()
+
+        raw_password = "".join(
+            secrets.choice(string.ascii_letters + string.digits + "!@#$%^&*")
+            for _ in range(16)
         )
-        db.add(super_admin)
+        if new_admin:
+            new_admin.hashed_password = get_password_hash(raw_password)
+            new_admin.is_active = True
+            print(f"Super admin ({NEW_ADMIN_EMAIL}) actualizado.")
+        else:
+            new_admin = SuperAdmin(
+                email=NEW_ADMIN_EMAIL,
+                hashed_password=get_password_hash(raw_password),
+                full_name="Super Admin",
+                is_active=True,
+            )
+            db.add(new_admin)
+            print(f"Super admin ({NEW_ADMIN_EMAIL}) creado.")
 
         default_settings = {
             "smtp_host": "smtp.gmail.com",
@@ -44,7 +61,7 @@ async def seed():
             "smtp_password": "",
             "smtp_from_email": "noreply@boletasaas.com",
             "smtp_from_name": "Boleta SaaS",
-            "notification_email": "admin@sistema.com",
+            "notification_email": NEW_ADMIN_EMAIL,
         }
         for key, value in default_settings.items():
             existing_setting = await db.execute(
@@ -55,11 +72,9 @@ async def seed():
 
         await db.commit()
 
-        print("Seed completado exitosamente!")
-        print("\nCredenciales del Super Admin:")
-        print("  Email: admin@sistema.com")
-        print("  Password: 123456")
-        print("\nUse el formulario de registro en /register para crear nuevas empresas.")
+        print("\nSeed completado!")
+        print(f"  Email: {NEW_ADMIN_EMAIL}")
+        print(f"  Password: {raw_password}")
 
 
 asyncio.run(seed())
