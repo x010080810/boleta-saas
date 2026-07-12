@@ -1,0 +1,12 @@
+Estimado(a) {{nombre}},
+
+Su boleta de pago correspondiente a {{empresa}} - período {{periodo}} ha sido generada.
+
+Adjunto en PDF encontrará su boleta de pago.
+
+Contraseña de apertura: Su número de documento
+
+Ticket de referencia: {{ticket}}
+
+Saludos cordiales,
+{{empresa}}

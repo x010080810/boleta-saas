@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+  }
+  body {
+    font-family: 'Helvetica', 'Arial', sans-serif;
+    font-size: 10px;
+    color: #222;
+    margin: 0;
+    padding: 0;
+  }
+  .red-line {
+    width: 80%;
+    height: 3px;
+    background: #c0392b;
+    margin: 0 auto 10px;
+  }
+  .header {
+    background: #2c3e50;
+    color: white;
+    padding: 15px 20px;
+    text-align: center;
+  }
+  .header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: bold;
+  }
+  .header p {
+    margin: 3px 0;
+    font-size: 11px;
+    opacity: 0.9;
+  }
+  .info-section {
+    background: #ecf0f1;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-left: 4px solid #2c3e50;
+  }
+  .info-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 20px;
+  }
+  .info-item {
+    flex: 1 1 45%;
+    font-size: 10px;
+    margin: 2px 0;
+  }
+  .info-item strong {
+    display: inline-block;
+    min-width: 120px;
+  }
+  .section-title {
+    background: #2c3e50;
+    color: white;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: bold;
+    margin: 10px 0 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+  }
+  table th {
+    background: #34495e;
+    color: white;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: bold;
+  }
+  table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #ddd;
+    font-size: 10px;
+  }
+  table tr:nth-child(even) {
+    background: #f8f9fa;
+  }
+  .right {
+    text-align: right;
+  }
+  .total-row td {
+    font-weight: bold;
+    background: #d5dbdb;
+    border-top: 2px solid #2c3e50;
+  }
+  .highlight-row {
+    background: #c0392b !important;
+    color: white;
+    font-weight: bold;
+  }
+  .highlight-row td {
+    background: #c0392b !important;
+    color: white;
+    border: none;
+  }
+  .footer {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #ccc;
+    font-size: 8px;
+    color: #666;
+  }
+  .footer strong {
+    color: #333;
+  }
+  .watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 60px;
+    color: rgba(192, 57, 43, 0.04);
+    font-weight: bold;
+    z-index: -1;
+  }
+</style>
+</head>
+<body>
+
+<div class="watermark">BOLETA DE PAGO</div>
+
+<div class="red-line"></div>
+
+<div class="header">
+  <h1>BOLETA DE PAGO</h1>
+  <p>{{ company_name }} - RUC: {{ company_ruc }}</p>
+  <p>Período: {{ periodo }} | {{ tipo_planilla }}</p>
+</div>
+
+<div class="info-section">
+  <div class="info-grid">
+    <div class="info-item"><strong>Trabajador:</strong> {{ employee_name }}</div>
+    <div class="info-item"><strong>Documento:</strong> {{ document_number }}</div>
+    <div class="info-item"><strong>Cargo:</strong> {{ cargo or '-' }}</div>
+    <div class="info-item"><strong>Días Laborados:</strong> {{ dias_laborados }}</div>
+    <div class="info-item"><strong>Fecha Emisión:</strong> {{ fecha_emision }}</div>
+  </div>
+</div>
+
+{% if ingresos or total_ingresos > 0 %}
+<div class="section-title">INGRESOS</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:60%;">Concepto</th>
+      <th class="right" style="width:40%;">Monto (S/)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ing in ingresos %}
+    {% if ing.value > 0 %}
+    <tr>
+      <td>{{ ing.label }}</td>
+      <td class="right">{{ "%.2f"|format(ing.value) }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+    {% if total_ingresos > 0 %}
+    <tr class="total-row">
+      <td>TOTAL INGRESOS</td>
+      <td class="right">{{ "%.2f"|format(total_ingresos) }}</td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if descuentos or total_descuentos > 0 %}
+<div class="section-title">DESCUENTOS</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:60%;">Concepto</th>
+      <th class="right" style="width:40%;">Monto (S/)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for desc in descuentos %}
+    {% if desc.value > 0 %}
+    <tr>
+      <td>{{ desc.label }}</td>
+      <td class="right">{{ "%.2f"|format(desc.value) }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+    {% if total_descuentos > 0 %}
+    <tr class="total-row">
+      <td>TOTAL DESCUENTOS</td>
+      <td class="right">{{ "%.2f"|format(total_descuentos) }}</td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if aportaciones or total_aportaciones > 0 %}
+<div class="section-title">APORTACIONES DEL EMPLEADOR</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:60%;">Concepto</th>
+      <th class="right" style="width:40%;">Monto (S/)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for apor in aportaciones %}
+    {% if apor.value > 0 %}
+    <tr>
+      <td>{{ apor.label }}</td>
+      <td class="right">{{ "%.2f"|format(apor.value) }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<div class="section-title" style="background: #c0392b;">RESUMEN</div>
+<table>
+  <tbody>
+    <tr>
+      <td style="width:60%;"><strong>Total Ingresos</strong></td>
+      <td class="right" style="width:40%;">{{ "%.2f"|format(total_ingresos) }}</td>
+    </tr>
+    <tr>
+      <td><strong>Total Descuentos</strong></td>
+      <td class="right">{{ "%.2f"|format(total_descuentos) }}</td>
+    </tr>
+    <tr class="highlight-row">
+      <td><strong>NETO A PAGAR</strong></td>
+      <td class="right"><strong>S/ {{ "%.2f"|format(neto_pagar) }}</strong></td>
+    </tr>
+    {% if neto_pagar_usd %}
+    <tr>
+      <td><strong>Neto a Pagar (USD)</strong></td>
+      <td class="right"><strong>$ {{ "%.2f"|format(neto_pagar_usd) }}</strong></td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<div class="footer">
+  <p><strong>Boleta de Pago generada electrónicamente</strong></p>
+  <p>Ticket: {{ ticket or '-' }} | {{ company_name }} - RUC: {{ company_ruc }}</p>
+  <p>Documento protegido con contraseña de apertura: Número de Documento del Trabajador</p>
+  <p>Fecha de Emisión: {{ fecha_emision }}</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,117 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: boleta_saas
+      POSTGRES_USER: boleta_user
+      POSTGRES_PASSWORD: boleta_pass_2025
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./backend/uploads:/app/uploads
+      - ./backend/output:/app/output
+    environment:
+      DATABASE_URL: postgresql+asyncpg://boleta_user:boleta_pass_2025@db:5432/boleta_saas
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: super-secret-key-change-in-production-12345
+      ENVIRONMENT: development
+      SEED_SMTP_HOST: ${SEED_SMTP_HOST:-smtp.gmail.com}
+      SEED_SMTP_PORT: ${SEED_SMTP_PORT:-587}
+      SEED_SMTP_USER: ${SEED_SMTP_USER:-}
+      SEED_SMTP_PASSWORD: ${SEED_SMTP_PASSWORD:-}
+      SEED_SMTP_FROM_EMAIL: ${SEED_SMTP_FROM_EMAIL:-}
+      SYSTEM_SMTP_HOST: ${SYSTEM_SMTP_HOST:-smtp.gmail.com}
+      SYSTEM_SMTP_PORT: ${SYSTEM_SMTP_PORT:-587}
+      SYSTEM_SMTP_USER: ${SYSTEM_SMTP_USER:-}
+      SYSTEM_SMTP_PASSWORD: ${SYSTEM_SMTP_PASSWORD:-}
+      SYSTEM_SMTP_FROM_EMAIL: ${SYSTEM_SMTP_FROM_EMAIL:-noreply@boletasaas.com}
+      SYSTEM_SMTP_FROM_NAME: ${SYSTEM_SMTP_FROM_NAME:-Boleta SaaS}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery_worker:
+    build: ./backend
+    command: celery -A app.core.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - ./backend:/app
+      - ./backend/output:/app/output
+    environment:
+      DATABASE_URL: postgresql+asyncpg://boleta_user:boleta_pass_2025@db:5432/boleta_saas
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: super-secret-key-change-in-production-12345
+      ENVIRONMENT: development
+      SEED_SMTP_HOST: ${SEED_SMTP_HOST:-smtp.gmail.com}
+      SEED_SMTP_PORT: ${SEED_SMTP_PORT:-587}
+      SEED_SMTP_USER: ${SEED_SMTP_USER:-}
+      SEED_SMTP_PASSWORD: ${SEED_SMTP_PASSWORD:-}
+      SEED_SMTP_FROM_EMAIL: ${SEED_SMTP_FROM_EMAIL:-}
+      SYSTEM_SMTP_HOST: ${SYSTEM_SMTP_HOST:-smtp.gmail.com}
+      SYSTEM_SMTP_PORT: ${SYSTEM_SMTP_PORT:-587}
+      SYSTEM_SMTP_USER: ${SYSTEM_SMTP_USER:-}
+      SYSTEM_SMTP_PASSWORD: ${SYSTEM_SMTP_PASSWORD:-}
+      SYSTEM_SMTP_FROM_EMAIL: ${SYSTEM_SMTP_FROM_EMAIL:-noreply@boletasaas.com}
+      SYSTEM_SMTP_FROM_NAME: ${SYSTEM_SMTP_FROM_NAME:-Boleta SaaS}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery_beat:
+    build: ./backend
+    command: celery -A app.core.celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+      - ./backend/output:/app/output
+    environment:
+      DATABASE_URL: postgresql+asyncpg://boleta_user:boleta_pass_2025@db:5432/boleta_saas
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: super-secret-key-change-in-production-12345
+      ENVIRONMENT: development
+      SEED_SMTP_HOST: ${SEED_SMTP_HOST:-smtp.gmail.com}
+      SEED_SMTP_PORT: ${SEED_SMTP_PORT:-587}
+      SEED_SMTP_USER: ${SEED_SMTP_USER:-}
+      SEED_SMTP_PASSWORD: ${SEED_SMTP_PASSWORD:-}
+      SEED_SMTP_FROM_EMAIL: ${SEED_SMTP_FROM_EMAIL:-}
+      SYSTEM_SMTP_HOST: ${SYSTEM_SMTP_HOST:-smtp.gmail.com}
+      SYSTEM_SMTP_PORT: ${SYSTEM_SMTP_PORT:-587}
+      SYSTEM_SMTP_USER: ${SYSTEM_SMTP_USER:-}
+      SYSTEM_SMTP_PASSWORD: ${SYSTEM_SMTP_PASSWORD:-}
+      SYSTEM_SMTP_FROM_EMAIL: ${SYSTEM_SMTP_FROM_EMAIL:-noreply@boletasaas.com}
+      SYSTEM_SMTP_FROM_NAME: ${SYSTEM_SMTP_FROM_NAME:-Boleta SaaS}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

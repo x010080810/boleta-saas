@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.egg
+
+# Environment
+.env
+.env.local
+
+# Uploads and generated files
+backend/uploads/*
+backend/output/*
+!backend/uploads/.gitkeep
+!backend/output/.gitkeep
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+*.pid
+*.sock
+
+# OS
+.DS_Store
+Thumbs.db

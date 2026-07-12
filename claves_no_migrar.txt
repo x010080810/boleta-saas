@@ -1,0 +1,18 @@
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+
+juan.nizama.r@gmail.com
+M@v3rick2024
+rtiu ikzm ucra wlhq
+
+
+Super Admin:
+- Email: admin@sistema.com
+- Password: 123456
+
+Ftrii
+jn835513@gmail.com
+M@v3rick2024
+aioz zesb vcik tvlg
