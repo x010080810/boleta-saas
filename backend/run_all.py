@@ -16,22 +16,16 @@ def main():
 
     api = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", port],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
     )
     processes.append(api)
 
     worker = subprocess.Popen(
         [sys.executable, "-m", "celery", "-A", "app.core.celery_app", "worker", "-l", "info"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
     )
     processes.append(worker)
 
     beat = subprocess.Popen(
         [sys.executable, "-m", "celery", "-A", "app.core.celery_app", "beat", "-l", "info"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
     )
     processes.append(beat)
 
