@@ -10,7 +10,8 @@ from app.models.quota import MonthlySendQuota
 from app.models.license import LicenseHistory
 from app.models.email_log import EmailLog
 from app.models.system_settings import SystemSetting
-from app.schemas.company import LicenseUpdate, AdminCreateUserRequest, AdminAssignUserRequest, AdminUpdateAssignmentRequest
+from app.schemas.company import LicenseUpdate, AdminCreateUserRequest, AdminAssignUserRequest, AdminUpdateAssignmentRequest, AdminCreateCompanyRequest, AdminCreateCompanyResponse
+from app.core.password_policy import validate_password, generate_secure_password
 from app.core.config import settings
 from datetime import date, datetime, timezone, timedelta
 
@@ -64,6 +65,62 @@ async def admin_list_companies(
         })
 
     return data
+
+
+@router.post("/companies")
+async def admin_create_company(
+    req: AdminCreateCompanyRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await verify_super_admin(current_user)
+
+    existing_ruc = await db.execute(select(Company).where(Company.ruc == req.company_ruc))
+    if existing_ruc.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="El RUC ya está registrado")
+
+    existing_user = await db.execute(select(CompanyUser).where(CompanyUser.email == req.admin_email))
+    if existing_user.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="El email ya está registrado")
+
+    today = date.today()
+    company = Company(
+        name=req.company_name,
+        ruc=req.company_ruc,
+        plan_envios_mes=req.plan_envios_mes,
+        licencia_inicio=today,
+        licencia_fin=today + timedelta(days=req.dias_vigencia),
+        licencia_grace_hasta=today + timedelta(days=req.dias_vigencia + 60),
+        licencia_estado="activa",
+        is_active=True,
+    )
+    db.add(company)
+    await db.flush()
+
+    raw_password = req.admin_password or generate_secure_password()
+    if not raw_password:
+        raw_password = generate_secure_password()
+
+    user = CompanyUser(
+        email=req.admin_email,
+        hashed_password=get_password_hash(raw_password),
+        full_name=req.admin_full_name,
+    )
+    db.add(user)
+    await db.flush()
+
+    assignment = UserCompany(user_id=user.id, company_id=company.id, role="admin")
+    db.add(assignment)
+    await db.flush()
+
+    await db.commit()
+
+    return AdminCreateCompanyResponse(
+        company_id=company.id,
+        company_name=company.name,
+        admin_email=user.email,
+        admin_password=raw_password,
+    )
 
 
 @router.get("/companies/{company_id}")

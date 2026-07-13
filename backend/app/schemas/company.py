@@ -76,3 +76,30 @@ class AdminAssignUserRequest(BaseModel):
 class AdminUpdateAssignmentRequest(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+class AdminCreateCompanyRequest(BaseModel):
+    company_name: str
+    company_ruc: str
+    admin_full_name: str
+    admin_email: str
+    admin_password: str = ""
+    plan_envios_mes: int = 50
+    dias_vigencia: int = 30
+
+    @field_validator("admin_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not v:
+            return v
+        valid, msg = validate_password(v)
+        if not valid:
+            raise ValueError(msg)
+        return v
+
+
+class AdminCreateCompanyResponse(BaseModel):
+    company_id: str
+    company_name: str
+    admin_email: str
+    admin_password: str

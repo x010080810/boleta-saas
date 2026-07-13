@@ -1,4 +1,6 @@
 import re
+import secrets
+import string
 
 COMMON_PASSWORDS = {
     "123456", "12345678", "123456789", "password", "contraseña",
@@ -37,3 +39,8 @@ def validate_password(password: str) -> tuple[bool, str]:
         return False, f"Debe contener al menos {MIN_SPECIAL} carácter especial (!@#$%^&*)"
 
     return True, ""
+
+
+def generate_secure_password(length: int = 16) -> str:
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    return "".join(secrets.choice(alphabet) for _ in range(length))

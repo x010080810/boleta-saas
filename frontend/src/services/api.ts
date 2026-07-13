@@ -93,6 +93,7 @@ export const payrollApi = {
 
 export const adminApi = {
   companies: () => api.get('/admin/companies'),
+  createCompany: (data: any) => api.post('/admin/companies', data),
   getCompany: (id: string) => api.get(`/admin/companies/${id}`),
   updateLicense: (id: string, data: any) =>
     api.put(`/admin/companies/${id}/license`, data),
