@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "jn835513@gmail.com"
 
+    # Mailtrap (alternativa a SMTP - HTTPS, funciona en Railway, no requiere DNS)
+    MAILTRAP_API_TOKEN: str = ""
+
     # Supabase Storage (S3-compatible)
     SUPABASE_S3_ENDPOINT: str = ""
     SUPABASE_S3_ACCESS_KEY: str = ""
