@@ -28,6 +28,48 @@ def _get_sendgrid_api_key() -> str:
     return os.environ.get("SENDGRID_API_KEY") or settings.SENDGRID_API_KEY or ""
 
 
+def _has_gmail_token() -> bool:
+    return bool(os.environ.get("GMAIL_TOKEN_JSON"))
+
+
+def _send_via_gmail(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    from_email: str,
+    from_name: str = "",
+    pdf_path: str = "",
+) -> dict:
+    try:
+        from app.services.gmail_sender import send_via_gmail_api
+        return send_via_gmail_api(
+            to_email=to_email,
+            subject=subject,
+            html_body=html_body,
+            from_email=from_email,
+            from_name=from_name,
+            pdf_path=pdf_path,
+        )
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _dispatch_email(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    from_email: str,
+    from_name: str = "",
+    pdf_path: str = "",
+) -> dict:
+    if _has_gmail_token():
+        return _send_via_gmail(to_email, subject, html_body, from_email, from_name, pdf_path)
+    api_key = _get_sendgrid_api_key()
+    if api_key:
+        return _send_via_sendgrid(to_email, subject, html_body, from_email, from_name, pdf_path)
+    return {"success": False, "error": "No hay metodo de envio configurado (Gmail API ni SendGrid)"}
+
+
 def _send_via_sendgrid(
     to_email: str,
     subject: str,
@@ -88,11 +130,10 @@ def send_payslip_email(
     pdf_path: str,
     pdf_password: str,
 ) -> dict:
-    sg_key = _get_sendgrid_api_key()
-    if sg_key:
+    if _has_gmail_token() or _get_sendgrid_api_key():
         subject = (subject_template or "Boleta de Pago - {{empresa}}").replace("{{empresa}}", company_name).replace("{{empleado}}", employee_name)
         body = (body_template or "").replace("{{empleado}}", employee_name).replace("{{empresa}}", company_name).replace("{{periodo}}", periodo).replace("{{ticket}}", ticket)
-        return _send_via_sendgrid(
+        return _dispatch_email(
             to_email=to_email, subject=subject, html_body=body,
             from_email=from_email, from_name=from_name, pdf_path=pdf_path,
         )
@@ -214,12 +255,11 @@ def send_notification(
     total_fallidos: int,
     total_sin_saldo: int,
 ) -> dict:
-    sg_key = _get_sendgrid_api_key()
-    if sg_key:
+    if _has_gmail_token() or _get_sendgrid_api_key():
         body = _render_notification_body(ticket, tipo_planilla, periodo, empresa, usuario,
                                           total_registros, total_procesados, total_observaciones,
                                           total_enviados, total_fallidos, total_sin_saldo)
-        return _send_via_sendgrid(
+        return _dispatch_email(
             to_email=to_email,
             subject=f"Procesamiento de Planilla Completado - Ticket #{ticket} | {empresa}",
             html_body=body,
@@ -302,8 +342,7 @@ def send_welcome_email(
     licencia_inicio: str = "",
     licencia_fin: str = "",
 ) -> dict:
-    sg_key = _get_sendgrid_api_key()
-    if sg_key:
+    if _has_gmail_token() or _get_sendgrid_api_key():
         body = f"""
         <html><body style="font-family: Arial, sans-serif;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -331,7 +370,7 @@ def send_welcome_email(
         </div>
         </body></html>
         """
-        return _send_via_sendgrid(
+        return _dispatch_email(
             to_email=to_email,
             subject=f"Bienvenido a Boleta SaaS - {company_name}",
             html_body=body,
@@ -411,8 +450,7 @@ def send_new_company_notification(
     licencia_inicio: str = "",
     licencia_fin: str = "",
 ) -> dict:
-    sg_key = _get_sendgrid_api_key()
-    if sg_key:
+    if _has_gmail_token() or _get_sendgrid_api_key():
         fecha = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
         body = f"""
         <html><body style="font-family: Arial, sans-serif;">
@@ -435,7 +473,7 @@ def send_new_company_notification(
         </div>
         </body></html>
         """
-        return _send_via_sendgrid(
+        return _dispatch_email(
             to_email=to_email,
             subject=f"Nueva empresa registrada - {company_name}",
             html_body=body,
@@ -514,8 +552,7 @@ def send_license_expiry_warning(
     dias: int,
     admin_name: str,
 ) -> dict:
-    sg_key = _get_sendgrid_api_key()
-    if sg_key:
+    if _has_gmail_token() or _get_sendgrid_api_key():
         body = f"""
         <html><body style="font-family: Arial, sans-serif;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -536,7 +573,7 @@ def send_license_expiry_warning(
         </div>
         </body></html>
         """
-        return _send_via_sendgrid(
+        return _dispatch_email(
             to_email=to_email,
             subject=f"Su licencia del Sistema de Boletas vence en {dias} dias",
             html_body=body,
