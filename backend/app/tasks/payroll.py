@@ -400,6 +400,24 @@ def process_payroll_upload(self, upload_id: str, company_id: str):
             ).scalar_one_or_none()
             if upload:
                 upload.estado = "failed"
+                upload.total_procesados = locals().get("procesados", 0)
+                upload.total_observaciones = locals().get("observados", 0)
+                upload.total_enviados = locals().get("enviados_count", 0)
+                upload.total_fallidos = locals().get("fallidos_count", 0)
+                upload.total_sin_saldo = locals().get("sin_saldo_count", 0)
+                upload.resumen_json = {
+                    "ticket": upload.ticket_number,
+                    "tipo_planilla": upload.tipo_planilla,
+                    "periodo": f"{upload.periodo_mes:02d}/{upload.periodo_ano}" if upload.periodo_mes else "",
+                    "total_registros": upload.total_registros or 0,
+                    "total_procesados": upload.total_procesados or 0,
+                    "total_observaciones": upload.total_observaciones or 0,
+                    "total_enviados": upload.total_enviados or 0,
+                    "total_fallidos": upload.total_fallidos or 0,
+                    "total_sin_saldo": upload.total_sin_saldo or 0,
+                }
+                upload.observaciones_json = locals().get("observaciones", []) or []
+                upload.detalle_envios_json = locals().get("detalle_envios", []) or []
                 db.commit()
         except Exception:
             pass

@@ -6,7 +6,7 @@ import { ArrowLeft, Download, Send, CheckCircle, AlertCircle, Clock, Ban, Loader
 import type { PaySlip } from '../../types';
 
 export default function PayrollReport() {
-  const { uploadId } = useParams();
+  const { companyId, uploadId } = useParams();
   const { selectedCompany } = useAuth();
   const [report, setReport] = useState<any>(null);
   const [boletas, setBoletas] = useState<PaySlip[]>([]);
@@ -14,35 +14,44 @@ export default function PayrollReport() {
   const [resending, setResending] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadFailed, setUploadFailed] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
 
+  const cid = companyId || selectedCompany?.id;
+
   useEffect(() => {
-    if (!selectedCompany || !uploadId) return;
+    if (!cid || !uploadId) return;
     Promise.all([
-      payrollApi.report(selectedCompany.id, uploadId),
-      payrollApi.boletas(selectedCompany.id, uploadId),
-      payrollApi.status(selectedCompany.id, uploadId),
+      payrollApi.report(cid, uploadId),
+      payrollApi.boletas(cid, uploadId),
+      payrollApi.status(cid, uploadId),
     ]).then(([rep, bol, st]) => {
       setReport(rep.data);
       setBoletas(bol.data);
       if (st.data.estado === 'processing') setProcessing(true);
-    }).catch(console.error);
-  }, [selectedCompany, uploadId]);
+      if (st.data.estado === 'failed') setUploadFailed(true);
+    }).catch((err) => {
+      setError(err.response?.data?.detail || 'Error al cargar reporte');
+      console.error(err);
+    });
+  }, [cid, uploadId]);
 
   useEffect(() => {
-    if (!processing || !selectedCompany || !uploadId) return;
+    if (!processing || !cid || !uploadId) return;
 
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await payrollApi.status(selectedCompany.id, uploadId);
+        const res = await payrollApi.status(cid, uploadId);
         if (res.data.estado !== 'processing') {
           const [rep, bol] = await Promise.all([
-            payrollApi.report(selectedCompany.id, uploadId),
-            payrollApi.boletas(selectedCompany.id, uploadId),
+            payrollApi.report(cid, uploadId),
+            payrollApi.boletas(cid, uploadId),
           ]);
           setReport(rep.data);
           setBoletas(bol.data);
           setProcessing(false);
+          if (res.data.estado === 'failed') setUploadFailed(true);
           clearInterval(pollingRef.current);
         }
       } catch {
@@ -52,7 +61,7 @@ export default function PayrollReport() {
     }, 3000);
 
     return () => clearInterval(pollingRef.current);
-  }, [processing, selectedCompany, uploadId]);
+  }, [processing, cid, uploadId]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -67,15 +76,15 @@ export default function PayrollReport() {
   };
 
   const handleResend = async () => {
-    if (!selectedCompany || !uploadId || selected.length === 0) return;
+    if (!cid || !uploadId || selected.length === 0) return;
     setResending(true);
     try {
-      const res = await payrollApi.resend(selectedCompany.id, uploadId, {
+      const res = await payrollApi.resend(cid, uploadId, {
         pay_slip_ids: selected,
         tipo: 'selected',
       });
       setMessage({ type: 'success', text: `Re-enviadas: ${res.data.enviados}` });
-      const resB = await payrollApi.boletas(selectedCompany.id, uploadId);
+      const resB = await payrollApi.boletas(cid, uploadId);
       setBoletas(resB.data);
       setSelected([]);
       setTimeout(() => setMessage(null), 4000);
@@ -88,8 +97,8 @@ export default function PayrollReport() {
   };
 
   const handleDownload = async (boletaId: string) => {
-    if (!selectedCompany) return;
-    const res = await payrollApi.download(selectedCompany.id, boletaId);
+    if (!cid) return;
+    const res = await payrollApi.download(cid, boletaId);
     const url = URL.createObjectURL(new Blob([res.data]));
     const a = document.createElement('a');
     a.href = url;
@@ -115,6 +124,13 @@ export default function PayrollReport() {
       default: return 'No enviado';
     }
   };
+
+  if (error) return (
+    <div className="text-center py-20">
+      <p className="text-red-500 font-medium mb-2">{error}</p>
+      <Link to="/payroll/history" className="text-blue-600 hover:underline text-sm">Volver al historial</Link>
+    </div>
+  );
 
   if (!report) return <div className="text-center py-20 text-gray-400">Cargando reporte...</div>;
 
@@ -145,6 +161,13 @@ export default function PayrollReport() {
           )}
         </div>
       </div>
+
+      {uploadFailed && (
+        <div className="mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-2 bg-red-50 text-red-700 border border-red-200">
+          <AlertCircle size={16} />
+          Esta carga finalizó con errores. Es posible que no se hayan generado todas las boletas.
+        </div>
+      )}
 
       {message && (
         <div className={`mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>

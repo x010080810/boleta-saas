@@ -117,7 +117,8 @@ export default function PayrollHistory() {
                   <td className="py-3">
                     <span className={`badge ${
                       u.estado === 'completed' ? 'badge-success' :
-                      u.estado === 'processing' ? 'badge-warning' : 'badge-info'
+                      u.estado === 'processing' ? 'badge-warning' :
+                      u.estado === 'failed' ? 'badge-danger' : 'badge-info'
                     }`}>
                       {u.estado}
                     </span>
@@ -127,7 +128,7 @@ export default function PayrollHistory() {
                   </td>
                   <td className="py-3">
                     <Link
-                      to={`/payroll/report/${u.id}`}
+                      to={`/payroll/report/${u.company_id}/${u.id}`}
                       className="flex items-center gap-1 text-blue-600 hover:underline text-xs"
                     >
                       <Eye size={14} />

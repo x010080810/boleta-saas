@@ -33,7 +33,7 @@ function AppRoutes() {
         <Route path="employees" element={<Employees />} />
         <Route path="payroll/upload" element={<PayrollUpload />} />
         <Route path="payroll/history" element={<PayrollHistory />} />
-        <Route path="payroll/report/:uploadId" element={<PayrollReport />} />
+        <Route path="payroll/report/:companyId/:uploadId" element={<PayrollReport />} />
         <Route path="settings" element={<Configuration />} />
         {isSuperAdmin && (
           <>
