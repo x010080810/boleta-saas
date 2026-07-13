@@ -5,10 +5,16 @@ from app.core.config import settings
 
 
 MAILTRAP_API_URL = "https://send.api.mailtrap.io/api/send"
+MAILTRAP_SANDBOX_DOMAIN = "demomailtrap.co"
 
 
 def _get_api_token() -> str:
     return os.environ.get("MAILTRAP_API_TOKEN") or getattr(settings, "MAILTRAP_API_TOKEN", "") or ""
+
+
+def _sandbox_from_email(original_email: str) -> str:
+    username = original_email.split("@")[0]
+    return f"{username}@{MAILTRAP_SANDBOX_DOMAIN}"
 
 
 def send_via_mailtrap(
@@ -24,14 +30,17 @@ def send_via_mailtrap(
     if not api_token:
         return {"success": False, "error": "MAILTRAP_API_TOKEN no configurado"}
 
-    from_email = from_email or os.environ.get("RESEND_FROM_EMAIL") or settings.RESEND_FROM_EMAIL or "jn835513@gmail.com"
+    sandbox_from = _sandbox_from_email(from_email or "noreply")
 
     payload = {
-        "from": {"email": from_email, "name": from_name or "Boleta SaaS"},
+        "from": {"email": sandbox_from, "name": from_name or "Boleta SaaS"},
         "to": [{"email": to_email}],
         "subject": subject,
         "html": html_body,
     }
+
+    if from_email:
+        payload["headers"] = {"Reply-To": from_email}
 
     if pdf_bytes:
         payload["attachments"] = [
