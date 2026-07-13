@@ -10,6 +10,8 @@ export default function AdminCompanies() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const nextMonth = new Date(Date.now() + 30*86400000).toISOString().split('T')[0];
   const [form, setForm] = useState({
     company_name: '',
     company_ruc: '',
@@ -17,7 +19,9 @@ export default function AdminCompanies() {
     admin_email: '',
     admin_password: '',
     plan_envios_mes: 50,
-    dias_vigencia: 30,
+    licencia_inicio: todayStr,
+    licencia_fin: nextMonth,
+    dias_gracia: 60,
   });
 
   useEffect(() => {
@@ -60,7 +64,7 @@ export default function AdminCompanies() {
   };
 
   const resetForm = () => {
-    setForm({ company_name: '', company_ruc: '', admin_full_name: '', admin_email: '', admin_password: '', plan_envios_mes: 50, dias_vigencia: 30 });
+    setForm({ company_name: '', company_ruc: '', admin_full_name: '', admin_email: '', admin_password: '', plan_envios_mes: 50, licencia_inicio: todayStr, licencia_fin: nextMonth, dias_gracia: 60 });
     setResult(null);
     setError('');
     setShowModal(false);
@@ -186,8 +190,18 @@ export default function AdminCompanies() {
                     <input name="plan_envios_mes" type="number" value={form.plan_envios_mes} onChange={handleChange} required className="input-field" min={1} />
                   </div>
                   <div>
-                    <label className="label">Días de vigencia</label>
-                    <input name="dias_vigencia" type="number" value={form.dias_vigencia} onChange={handleChange} required className="input-field" min={1} />
+                    <label className="label">Días de gracia</label>
+                    <input name="dias_gracia" type="number" value={form.dias_gracia} onChange={handleChange} required className="input-field" min={0} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Inicio de licencia</label>
+                    <input name="licencia_inicio" type="date" value={form.licencia_inicio} onChange={handleChange} required className="input-field" />
+                  </div>
+                  <div>
+                    <label className="label">Fin de licencia</label>
+                    <input name="licencia_fin" type="date" value={form.licencia_fin} onChange={handleChange} required className="input-field" />
                   </div>
                 </div>
                 <button type="submit" disabled={loading} className="btn btn-primary w-full flex items-center justify-center gap-2">

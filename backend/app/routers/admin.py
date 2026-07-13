@@ -83,14 +83,13 @@ async def admin_create_company(
     if existing_user.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="El email ya está registrado")
 
-    today = date.today()
     company = Company(
         name=req.company_name,
         ruc=req.company_ruc,
         plan_envios_mes=req.plan_envios_mes,
-        licencia_inicio=today,
-        licencia_fin=today + timedelta(days=req.dias_vigencia),
-        licencia_grace_hasta=today + timedelta(days=req.dias_vigencia + 60),
+        licencia_inicio=req.licencia_inicio,
+        licencia_fin=req.licencia_fin,
+        licencia_grace_hasta=req.licencia_fin + timedelta(days=req.dias_gracia),
         licencia_estado="activa",
         is_active=True,
     )

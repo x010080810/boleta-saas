@@ -85,7 +85,9 @@ class AdminCreateCompanyRequest(BaseModel):
     admin_email: str
     admin_password: str = ""
     plan_envios_mes: int = 50
-    dias_vigencia: int = 30
+    licencia_inicio: date
+    licencia_fin: date
+    dias_gracia: int = 60
 
     @field_validator("admin_password")
     @classmethod
