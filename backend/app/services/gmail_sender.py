@@ -38,7 +38,8 @@ def send_via_gmail_api(
     html_body: str,
     from_email: str,
     from_name: str = "",
-    pdf_path: str = "",
+    pdf_bytes: bytes = b"",
+    pdf_filename: str = "",
 ) -> dict:
     creds = _load_credentials()
     if not creds:
@@ -58,14 +59,12 @@ def send_via_gmail_api(
         body_part = MIMEText(html_body, "html", "utf-8")
         msg.attach(body_part)
 
-        if pdf_path and os.path.exists(pdf_path):
-            with open(pdf_path, "rb") as f:
-                part = MIMEBase("application", "pdf")
-                part.set_payload(f.read())
-                encoders.encode_base64(part)
-                filename = os.path.basename(pdf_path).replace(" ", "_")
-                part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
-                msg.attach(part)
+        if pdf_bytes:
+            part = MIMEBase("application", "pdf")
+            part.set_payload(pdf_bytes)
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f'attachment; filename="{pdf_filename or "boleta.pdf"}"')
+            msg.attach(part)
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 

@@ -1,32 +1,65 @@
 import os
+import boto3
 from typing import Optional
 from app.core.config import settings
 
 
-_pdf_dir: Optional[str] = None
+_s3_client: Optional[object] = None
 
 
-def _get_output_dir() -> str:
-    global _pdf_dir
-    if _pdf_dir is None:
-        _pdf_dir = settings.OUTPUT_DIR
-        os.makedirs(_pdf_dir, exist_ok=True)
-    return _pdf_dir
+def _get_s3():
+    global _s3_client
+    if _s3_client is None:
+        _s3_client = boto3.client(
+            "s3",
+            endpoint_url=settings.SUPABASE_S3_ENDPOINT,
+            aws_access_key_id=settings.SUPABASE_S3_ACCESS_KEY,
+            aws_secret_access_key=settings.SUPABASE_S3_SECRET_KEY,
+            region_name=settings.SUPABASE_S3_REGION,
+        )
+    return _s3_client
 
 
-def save_pdf(file_bytes: bytes, filename: str) -> str:
-    output_dir = _get_output_dir()
-    filepath = os.path.join(output_dir, filename)
-    with open(filepath, "wb") as f:
-        f.write(file_bytes)
-    return filepath
+def _bucket_name() -> str:
+    return settings.STORAGE_BUCKET
 
 
-def read_pdf(filepath: str) -> Optional[bytes]:
-    if not os.path.exists(filepath):
+def save_pdf(file_bytes: bytes, key: str) -> str:
+    s3 = _get_s3()
+    s3.put_object(Bucket=_bucket_name(), Key=key, Body=file_bytes, ContentType="application/pdf")
+    return key
+
+
+def read_pdf(key: str) -> Optional[bytes]:
+    if not key:
         return None
-    with open(filepath, "rb") as f:
-        return f.read()
+    s3 = _get_s3()
+    try:
+        resp = s3.get_object(Bucket=_bucket_name(), Key=key)
+        return resp["Body"].read()
+    except Exception:
+        return None
+
+
+def save_upload(file_bytes: bytes, key: str) -> str:
+    s3 = _get_s3()
+    s3.put_object(Bucket=_bucket_name(), Key=key, Body=file_bytes)
+    return key
+
+
+def delete_file(key: str) -> None:
+    s3 = _get_s3()
+    try:
+        s3.delete_object(Bucket=_bucket_name(), Key=key)
+    except Exception:
+        pass
+
+
+def get_public_url(key: str) -> str:
+    base = settings.SUPABASE_S3_PUBLIC_URL
+    if not base:
+        return key
+    return f"{base.rstrip('/')}/{key.lstrip('/')}"
 
 
 def ensure_dirs() -> None:

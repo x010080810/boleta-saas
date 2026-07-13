@@ -1,4 +1,5 @@
 import os
+import base64
 import resend
 from app.core.config import settings
 
@@ -13,7 +14,8 @@ def send_via_resend(
     html_body: str,
     from_email: str = "",
     from_name: str = "",
-    pdf_path: str = "",
+    pdf_bytes: bytes = b"",
+    pdf_filename: str = "",
 ) -> dict:
     api_key = _get_api_key()
     if not api_key:
@@ -30,13 +32,11 @@ def send_via_resend(
         "html": html_body,
     }
 
-    if pdf_path and os.path.exists(pdf_path):
-        with open(pdf_path, "rb") as f:
-            import base64
-            content = base64.b64encode(f.read()).decode()
+    if pdf_bytes:
+        content = base64.b64encode(pdf_bytes).decode()
         params["attachments"] = [
             {
-                "filename": os.path.basename(pdf_path).replace(" ", "_"),
+                "filename": pdf_filename or "boleta.pdf",
                 "content": content,
             }
         ]

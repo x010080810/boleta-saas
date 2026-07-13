@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     SYSTEM_SMTP_PORT: int = 587
     SYSTEM_SMTP_USER: str = ""
     SYSTEM_SMTP_PASSWORD: str = ""
-    SYSTEM_SMTP_FROM_EMAIL: str = "noreply@boletasaas.com"
+    SYSTEM_SMTP_FROM_EMAIL: str = "jn835513@gmail.com"
     SYSTEM_SMTP_FROM_NAME: str = "Boleta SaaS"
 
     # SendGrid (alternativa a SMTP para entornos que bloquean puertos SMTP)
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # Resend (alternativa a SMTP - HTTPS puerto 443, funciona en Railway)
     RESEND_API_KEY: str = ""
-    RESEND_FROM_EMAIL: str = ""
+    RESEND_FROM_EMAIL: str = "jn835513@gmail.com"
 
     # Supabase Storage (S3-compatible)
     SUPABASE_S3_ENDPOINT: str = ""

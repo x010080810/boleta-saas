@@ -415,11 +415,13 @@ async def download_all_boletas(
     boletas = result.scalars().all()
 
     buf = io.BytesIO()
+    from app.services.storage import read_pdf as read_pdf_s3
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for b in boletas:
-            if b.pdf_path and os.path.exists(b.pdf_path):
+            pdf_data = read_pdf_s3(b.pdf_path) if b.pdf_path else None
+            if pdf_data:
                 arcname = f"boleta_{b.numero_documento}_{b.nombre_completo[:30].replace(' ', '_')}.pdf"
-                zf.write(b.pdf_path, arcname)
+                zf.writestr(arcname, pdf_data)
     buf.seek(0)
 
     filename = f"boletas_{upload.ticket_number}.zip"

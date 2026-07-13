@@ -15,7 +15,7 @@ from app.models.license import LicenseHistory
 from app.core.config import settings
 from datetime import datetime, timezone
 
-NEW_ADMIN_EMAIL = "juan.nizama.r@gmail.com"
+NEW_ADMIN_EMAIL = "jn835513@gmail.com"
 OLD_ADMIN_EMAIL = "admin@sistema.com"
 
 engine = create_async_engine(settings.DATABASE_URL, echo=True)

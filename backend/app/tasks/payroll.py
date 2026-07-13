@@ -142,6 +142,7 @@ def process_payroll_upload(self, upload_id: str, company_id: str):
                 ticket=upload.ticket_number,
                 dias_laborados=emp.get("dias_laborados", 30),
                 output_dir=settings.OUTPUT_DIR,
+                s3_prefix=f"payslips/{company_id}/{upload_id}",
             )
 
             pay_slip = PaySlip(

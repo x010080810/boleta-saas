@@ -4,6 +4,7 @@ from datetime import datetime
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 import fitz  # PyMuPDF
+from app.services.storage import save_pdf
 
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "pdf")
@@ -28,6 +29,7 @@ def generate_payslip_pdf(
     ticket: str = "",
     dias_laborados: int = 30,
     output_dir: str = "output",
+    s3_prefix: str = "",
 ) -> tuple:
     os.makedirs(output_dir, exist_ok=True)
 
@@ -74,12 +76,19 @@ def generate_payslip_pdf(
     HTML(string=html_content).write_pdf(temp_pdf)
 
     pdf_password = document_number
-    final_pdf = os.path.join(output_dir, f"boleta_{document_number}_{uuid.uuid4().hex[:8]}.pdf")
+    final_name = f"boleta_{document_number}_{uuid.uuid4().hex[:8]}.pdf"
 
     doc = fitz.open(temp_pdf)
-    doc.save(final_pdf, encryption=fitz.PDF_ENCRYPT_AES_128, user_pw=pdf_password, owner_pw=pdf_password)
+    s3_key = f"{s3_prefix}/{final_name}" if s3_prefix else final_name
+    final_path = os.path.join(output_dir, final_name)
+    doc.save(final_path, encryption=fitz.PDF_ENCRYPT_AES_128, user_pw=pdf_password, owner_pw=pdf_password)
     doc.close()
 
-    os.remove(temp_pdf)
+    with open(final_path, "rb") as f:
+        pdf_bytes = f.read()
+    save_pdf(pdf_bytes, s3_key)
 
-    return final_pdf, pdf_password
+    os.remove(temp_pdf)
+    os.remove(final_path)
+
+    return s3_key, pdf_password

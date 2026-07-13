@@ -42,7 +42,8 @@ def _send_via_gmail(
     html_body: str,
     from_email: str,
     from_name: str = "",
-    pdf_path: str = "",
+    pdf_bytes: bytes = b"",
+    pdf_filename: str = "",
 ) -> dict:
     try:
         from app.services.gmail_sender import send_via_gmail_api
@@ -52,7 +53,8 @@ def _send_via_gmail(
             html_body=html_body,
             from_email=from_email,
             from_name=from_name,
-            pdf_path=pdf_path,
+            pdf_bytes=pdf_bytes,
+            pdf_filename=pdf_filename,
         )
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -64,13 +66,15 @@ def _send_via_resend(
     html_body: str,
     from_email: str = "",
     from_name: str = "",
-    pdf_path: str = "",
+    pdf_bytes: bytes = b"",
+    pdf_filename: str = "",
 ) -> dict:
     try:
         from app.services.resend_sender import send_via_resend
         return send_via_resend(
             to_email=to_email, subject=subject, html_body=html_body,
-            from_email=from_email, from_name=from_name, pdf_path=pdf_path,
+            from_email=from_email, from_name=from_name,
+            pdf_bytes=pdf_bytes, pdf_filename=pdf_filename,
         )
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -82,15 +86,16 @@ def _dispatch_email(
     html_body: str,
     from_email: str,
     from_name: str = "",
-    pdf_path: str = "",
+    pdf_bytes: bytes = b"",
+    pdf_filename: str = "",
 ) -> dict:
     if _get_resend_api_key():
-        return _send_via_resend(to_email, subject, html_body, from_email, from_name, pdf_path)
+        return _send_via_resend(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)
     if _has_gmail_token():
-        return _send_via_gmail(to_email, subject, html_body, from_email, from_name, pdf_path)
+        return _send_via_gmail(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)
     api_key = _get_sendgrid_api_key()
     if api_key:
-        return _send_via_sendgrid(to_email, subject, html_body, from_email, from_name, pdf_path)
+        return _send_via_sendgrid(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)
     return {"success": False, "error": "No hay metodo de envio configurado (Resend, Gmail API ni SendGrid)"}
 
 
@@ -100,7 +105,8 @@ def _send_via_sendgrid(
     html_body: str,
     from_email: str,
     from_name: str = "",
-    pdf_path: str = "",
+    pdf_bytes: bytes = b"",
+    pdf_filename: str = "",
 ) -> dict:
     api_key = _get_sendgrid_api_key()
     if not api_key:
@@ -114,7 +120,8 @@ def _send_via_sendgrid(
             html_body=html_body,
             from_email=from_email,
             from_name=from_name,
-            pdf_path=pdf_path or None,
+            pdf_bytes=pdf_bytes,
+            pdf_filename=pdf_filename,
         )
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -154,12 +161,17 @@ def send_payslip_email(
     pdf_path: str,
     pdf_password: str,
 ) -> dict:
+    from app.services.storage import read_pdf as _read_pdf_s3
+    pdf_bytes = _read_pdf_s3(pdf_path) if pdf_path else b""
+    pdf_filename = pdf_path.split("/")[-1] if pdf_path else "boleta.pdf"
+
     if _get_resend_api_key() or _has_gmail_token() or _get_sendgrid_api_key():
         subject = (subject_template or "Boleta de Pago - {{empresa}}").replace("{{empresa}}", company_name).replace("{{empleado}}", employee_name)
         body = (body_template or "").replace("{{empleado}}", employee_name).replace("{{empresa}}", company_name).replace("{{periodo}}", periodo).replace("{{ticket}}", ticket)
         return _dispatch_email(
             to_email=to_email, subject=subject, html_body=body,
-            from_email=from_email, from_name=from_name, pdf_path=pdf_path,
+            from_email=from_email, from_name=from_name,
+            pdf_bytes=pdf_bytes, pdf_filename=pdf_filename,
         )
 
     if not all([smtp_host, smtp_user, smtp_password, from_email, to_email]):
@@ -198,17 +210,15 @@ def send_payslip_email(
 
         msg.attach(MIMEText(body, "html", "utf-8"))
 
-        if pdf_path and os.path.exists(pdf_path):
-            with open(pdf_path, "rb") as f:
-                part = MIMEBase("application", "pdf")
-                part.set_payload(f.read())
-                encoders.encode_base64(part)
-                filename = os.path.basename(pdf_path).replace(" ", "_")
-                part.add_header(
-                    "Content-Disposition",
-                    f'attachment; filename="{filename}"',
-                )
-                msg.attach(part)
+        if pdf_bytes:
+            part = MIMEBase("application", "pdf")
+            part.set_payload(pdf_bytes)
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f'attachment; filename="{pdf_filename}"',
+            )
+            msg.attach(part)
 
         server = _connect_smtp(smtp_host, smtp_port, smtp_user, smtp_password)
         server.send_message(msg)

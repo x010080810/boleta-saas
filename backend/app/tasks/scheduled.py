@@ -116,12 +116,8 @@ def update_license_states():
 
 @celery_app.task
 def backup_database():
-    backup_dir = settings.BACKUP_DIR
-    os.makedirs(backup_dir, exist_ok=True)
-
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filename = f"backup_{timestamp}.sql.gz"
-    filepath = os.path.join(backup_dir, filename)
 
     parts = settings.DATABASE_URL_SYNC.replace("postgresql://", "").split("@")
     user_pass = parts[0].split(":")
@@ -143,14 +139,18 @@ def backup_database():
 
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-        import gzip
-        with gzip.open(filepath, "wb") as gz:
+        import gzip, io
+        buf = io.BytesIO()
+        with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
             for chunk in iter(lambda: proc.stdout.read(65536), b""):
                 gz.write(chunk)
         proc.wait()
 
         if proc.returncode == 0:
-            print(f"Backup created: {filepath} ({os.path.getsize(filepath)} bytes)")
+            from app.services.storage import save_pdf
+            s3_key = f"backups/{filename}"
+            save_pdf(buf.getvalue(), s3_key)
+            print(f"Backup uploaded to S3: {s3_key} ({buf.tell()} bytes)")
         else:
             stderr = proc.stderr.read().decode()
             print(f"Backup failed: {stderr}")

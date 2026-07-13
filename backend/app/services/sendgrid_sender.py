@@ -1,6 +1,5 @@
 import os
-import uuid
-from datetime import datetime, timezone
+import base64
 from typing import Optional
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import (
@@ -16,8 +15,8 @@ def send_via_sendgrid(
     html_body: str,
     from_email: Optional[str] = None,
     from_name: Optional[str] = None,
-    pdf_path: Optional[str] = None,
-    pdf_filename: Optional[str] = None,
+    pdf_bytes: bytes = b"",
+    pdf_filename: str = "",
 ) -> dict:
     api_key = os.environ.get("SENDGRID_API_KEY") or getattr(settings, "SENDGRID_API_KEY", "")
     if not api_key:
@@ -33,13 +32,11 @@ def send_via_sendgrid(
         html_content=HtmlContent(html_body),
     )
 
-    if pdf_path and os.path.exists(pdf_path):
-        with open(pdf_path, "rb") as f:
-            import base64
-            encoded = base64.b64encode(f.read()).decode()
+    if pdf_bytes:
+        encoded = base64.b64encode(pdf_bytes).decode()
         attachment = Attachment(
             file_content=FileContent(encoded),
-            file_name=FileName(pdf_filename or os.path.basename(pdf_path)),
+            file_name=FileName(pdf_filename or "boleta.pdf"),
             file_type=FileType("application/pdf"),
             disposition=Disposition("attachment"),
         )
