@@ -24,6 +24,10 @@ def _connect_smtp(host: str, port: int, user: str, password: str, timeout: int =
     return server
 
 
+def _get_resend_api_key() -> str:
+    return os.environ.get("RESEND_API_KEY") or settings.RESEND_API_KEY or ""
+
+
 def _get_sendgrid_api_key() -> str:
     return os.environ.get("SENDGRID_API_KEY") or settings.SENDGRID_API_KEY or ""
 
@@ -54,6 +58,24 @@ def _send_via_gmail(
         return {"success": False, "error": str(e)}
 
 
+def _send_via_resend(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    from_email: str = "",
+    from_name: str = "",
+    pdf_path: str = "",
+) -> dict:
+    try:
+        from app.services.resend_sender import send_via_resend
+        return send_via_resend(
+            to_email=to_email, subject=subject, html_body=html_body,
+            from_email=from_email, from_name=from_name, pdf_path=pdf_path,
+        )
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def _dispatch_email(
     to_email: str,
     subject: str,
@@ -62,12 +84,14 @@ def _dispatch_email(
     from_name: str = "",
     pdf_path: str = "",
 ) -> dict:
+    if _get_resend_api_key():
+        return _send_via_resend(to_email, subject, html_body, from_email, from_name, pdf_path)
     if _has_gmail_token():
         return _send_via_gmail(to_email, subject, html_body, from_email, from_name, pdf_path)
     api_key = _get_sendgrid_api_key()
     if api_key:
         return _send_via_sendgrid(to_email, subject, html_body, from_email, from_name, pdf_path)
-    return {"success": False, "error": "No hay metodo de envio configurado (Gmail API ni SendGrid)"}
+    return {"success": False, "error": "No hay metodo de envio configurado (Resend, Gmail API ni SendGrid)"}
 
 
 def _send_via_sendgrid(
@@ -130,7 +154,7 @@ def send_payslip_email(
     pdf_path: str,
     pdf_password: str,
 ) -> dict:
-    if _has_gmail_token() or _get_sendgrid_api_key():
+    if _get_resend_api_key() or _has_gmail_token() or _get_sendgrid_api_key():
         subject = (subject_template or "Boleta de Pago - {{empresa}}").replace("{{empresa}}", company_name).replace("{{empleado}}", employee_name)
         body = (body_template or "").replace("{{empleado}}", employee_name).replace("{{empresa}}", company_name).replace("{{periodo}}", periodo).replace("{{ticket}}", ticket)
         return _dispatch_email(
@@ -255,7 +279,7 @@ def send_notification(
     total_fallidos: int,
     total_sin_saldo: int,
 ) -> dict:
-    if _has_gmail_token() or _get_sendgrid_api_key():
+    if _get_resend_api_key() or _has_gmail_token() or _get_sendgrid_api_key():
         body = _render_notification_body(ticket, tipo_planilla, periodo, empresa, usuario,
                                           total_registros, total_procesados, total_observaciones,
                                           total_enviados, total_fallidos, total_sin_saldo)
@@ -342,7 +366,7 @@ def send_welcome_email(
     licencia_inicio: str = "",
     licencia_fin: str = "",
 ) -> dict:
-    if _has_gmail_token() or _get_sendgrid_api_key():
+    if _get_resend_api_key() or _has_gmail_token() or _get_sendgrid_api_key():
         body = f"""
         <html><body style="font-family: Arial, sans-serif;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -450,7 +474,7 @@ def send_new_company_notification(
     licencia_inicio: str = "",
     licencia_fin: str = "",
 ) -> dict:
-    if _has_gmail_token() or _get_sendgrid_api_key():
+    if _get_resend_api_key() or _has_gmail_token() or _get_sendgrid_api_key():
         fecha = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
         body = f"""
         <html><body style="font-family: Arial, sans-serif;">
@@ -552,7 +576,7 @@ def send_license_expiry_warning(
     dias: int,
     admin_name: str,
 ) -> dict:
-    if _has_gmail_token() or _get_sendgrid_api_key():
+    if _get_resend_api_key() or _has_gmail_token() or _get_sendgrid_api_key():
         body = f"""
         <html><body style="font-family: Arial, sans-serif;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">

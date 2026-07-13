@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # SendGrid (alternativa a SMTP para entornos que bloquean puertos SMTP)
     SENDGRID_API_KEY: str = ""
 
+    # Resend (alternativa a SMTP - HTTPS puerto 443, funciona en Railway)
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = ""
+
     # Supabase Storage (S3-compatible)
     SUPABASE_S3_ENDPOINT: str = ""
     SUPABASE_S3_ACCESS_KEY: str = ""

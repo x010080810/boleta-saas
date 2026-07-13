@@ -9,7 +9,7 @@ from app.models.super_admin import SuperAdmin
 from app.models.system_settings import SystemSetting
 from app.core.config import settings
 
-NEW_ADMIN_EMAIL = "jn835513@gmail.com"
+NEW_ADMIN_EMAIL = "juan.nizama.r@gmail.com"
 OLD_ADMIN_EMAIL = "admin@sistema.com"
 
 
