@@ -26,6 +26,8 @@ def send_via_resend(
 
     sender = from_email or os.environ.get("RESEND_FROM_EMAIL") or "onboarding@resend.dev"
 
+    print(f"[RESEND] to={to_email!r} from={sender!r} reply_to={from_email!r}")
+
     payload = {
         "from": sender,
         "to": [to_email],
@@ -63,6 +65,8 @@ def send_via_resend(
                 detail = resp.json().get("message") or resp.json().get("error") or resp.text
             except Exception:
                 detail = resp.text
+            print(f"[RESEND] FAILED: {detail}")
             return {"success": False, "error": f"Resend error {resp.status_code}: {detail}"}
     except Exception as e:
+        print(f"[RESEND] EXCEPTION: {e}")
         return {"success": False, "error": str(e)}
