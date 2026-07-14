@@ -193,7 +193,13 @@ def send_payslip_email(
 
     if _get_resend_api_key() or _has_gmail_token() or _get_sendgrid_api_key() or _get_mailtrap_api_token():
         subject = (subject_template or "Boleta de Pago - {{empresa}}").replace("{{empresa}}", company_name).replace("{{empleado}}", employee_name)
-        body = (body_template or "").replace("{{empleado}}", employee_name).replace("{{empresa}}", company_name).replace("{{periodo}}", periodo).replace("{{ticket}}", ticket)
+        body = (body_template or """
+<html><body>
+<p>Estimado(a) <strong>{{empleado}}</strong>,</p>
+<p>Adjunto su boleta de pago de <strong>{{empresa}}</strong> - periodo {{periodo}}.</p>
+<p>Ticket: {{ticket}}</p>
+</body></html>
+""").replace("{{empleado}}", employee_name).replace("{{empresa}}", company_name).replace("{{periodo}}", periodo).replace("{{ticket}}", ticket)
         return _dispatch_email(
             to_email=to_email, subject=subject, html_body=body,
             from_email=from_email, from_name=from_name,
