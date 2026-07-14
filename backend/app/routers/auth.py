@@ -90,11 +90,14 @@ async def register_company(req: RegisterCompanyRequest, request: Request, db: As
     if not result_welcome.get("success"):
         print(f"[EMAIL ERROR] Bienvenida a {req.admin_email}: {result_welcome.get('error')}")
 
-    notification_to = smtp["notification_email"]
-    if not notification_to:
-        super_result = await db.execute(select(SuperAdmin).where(SuperAdmin.is_active == True))
-        super_admin = super_result.scalar_one_or_none()
-        if super_admin:
+    notification_to = smtp["notification_email"] or ""
+    super_result = await db.execute(select(SuperAdmin).where(SuperAdmin.is_active == True))
+    super_admin = super_result.scalar_one_or_none()
+    if super_admin:
+        if not notification_to:
+            notification_to = super_admin.email
+        elif notification_to != super_admin.email:
+            print(f"[AUTH] notification_email ({notification_to}) != super admin ({super_admin.email}), usando super admin")
             notification_to = super_admin.email
 
     if notification_to:
