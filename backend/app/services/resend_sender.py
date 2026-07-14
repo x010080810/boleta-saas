@@ -24,7 +24,7 @@ def send_via_resend(
     if not api_key:
         return {"success": False, "error": "RESEND_API_KEY no configurado"}
 
-    sender = from_email or os.environ.get("RESEND_FROM_EMAIL") or "onboarding@resend.dev"
+    sender = "onboarding@resend.dev"
 
     print(f"[RESEND] to={to_email!r} from={sender!r} reply_to={from_email!r}")
 
