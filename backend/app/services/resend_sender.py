@@ -23,13 +23,14 @@ def send_via_resend(
 
     resend.api_key = api_key
 
-    from_email = from_email or os.environ.get("RESEND_FROM_EMAIL") or "onboarding@resend.dev"
+    sender_email = os.environ.get("RESEND_FROM_EMAIL") or "onboarding@resend.dev"
 
     params = {
-        "from": from_email,
+        "from": sender_email,
         "to": [to_email],
         "subject": subject,
         "html": html_body,
+        "reply_to": from_email or sender_email,
     }
 
     if pdf_bytes:
