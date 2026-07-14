@@ -364,7 +364,8 @@ async def download_boleta(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from fastapi.responses import FileResponse
+    from fastapi.responses import Response
+    from app.services.storage import read_pdf
     await get_company_and_check_access(company_id, current_user, db)
 
     result = await db.execute(
@@ -377,12 +378,12 @@ async def download_boleta(
     if not boleta or not boleta.pdf_path:
         raise HTTPException(status_code=404, detail="Boleta no encontrada")
 
-    filepath = boleta.pdf_path
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail="Archivo PDF no encontrado en disco")
+    pdf_bytes = read_pdf(boleta.pdf_path)
+    if not pdf_bytes:
+        raise HTTPException(status_code=404, detail="Archivo PDF no encontrado en almacenamiento")
 
     filename = f"boleta_{boleta.numero_documento}_{boleta.nombre_completo[:30].replace(' ', '_')}.pdf"
-    return FileResponse(path=filepath, filename=filename, media_type="application/pdf")
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 @router.get("/uploads/{upload_id}/download-all")
