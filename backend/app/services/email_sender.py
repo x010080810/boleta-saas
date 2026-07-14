@@ -9,6 +9,7 @@ from email import encoders
 from email.utils import formataddr, formatdate
 from html import escape
 from jinja2 import Environment, FileSystemLoader
+from app.core.config import settings
 
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "email")
