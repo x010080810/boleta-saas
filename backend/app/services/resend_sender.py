@@ -1,7 +1,10 @@
 import os
 import base64
-import resend
+import httpx
 from app.core.config import settings
+
+
+RESEND_API_URL = "https://api.resend.com/emails"
 
 
 def _get_api_key() -> str:
@@ -21,21 +24,19 @@ def send_via_resend(
     if not api_key:
         return {"success": False, "error": "RESEND_API_KEY no configurado"}
 
-    resend.api_key = api_key
-
-    sender_email = "onboarding@resend.dev"
-
-    params = {
-        "from": sender_email,
+    payload = {
+        "from": "onboarding@resend.dev",
         "to": [to_email],
         "subject": subject,
         "html": html_body,
-        "reply_to": from_email or sender_email,
     }
+
+    if from_email:
+        payload["reply_to"] = from_email
 
     if pdf_bytes:
         content = base64.b64encode(pdf_bytes).decode()
-        params["attachments"] = [
+        payload["attachments"] = [
             {
                 "filename": pdf_filename or "boleta.pdf",
                 "content": content,
@@ -43,7 +44,23 @@ def send_via_resend(
         ]
 
     try:
-        response = resend.Emails.send(params)
-        return {"success": True, "error": None, "id": response.get("id")}
+        with httpx.Client(timeout=30) as client:
+            resp = client.post(
+                RESEND_API_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        if resp.status_code in (200, 201):
+            data = resp.json()
+            return {"success": True, "error": None, "id": data.get("id")}
+        else:
+            try:
+                detail = resp.json().get("message") or resp.json().get("error") or resp.text
+            except Exception:
+                detail = resp.text
+            return {"success": False, "error": f"Resend error {resp.status_code}: {detail}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
