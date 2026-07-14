@@ -13,7 +13,7 @@ from app.models.system_settings import SystemSetting
 from app.schemas.company import LicenseUpdate, AdminCreateUserRequest, AdminAssignUserRequest, AdminUpdateAssignmentRequest, AdminCreateCompanyRequest, AdminCreateCompanyResponse
 from app.core.password_policy import validate_password, generate_secure_password
 from app.core.config import settings
-from app.services.email_sender import send_welcome_email, send_new_company_notification
+from app.services.email_sender import send_welcome_email, send_new_company_notification, send_user_welcome_email, send_new_user_notification
 from datetime import date, datetime, timezone, timedelta
 
 router = APIRouter()
@@ -279,8 +279,9 @@ async def admin_create_user(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="El email ya está registrado")
 
-    company = await db.execute(select(Company).where(Company.id == req.company_id))
-    if not company.scalar_one_or_none():
+    company_result = await db.execute(select(Company).where(Company.id == req.company_id))
+    company = company_result.scalar_one_or_none()
+    if not company:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
 
     user = CompanyUser(
@@ -298,6 +299,52 @@ async def admin_create_user(
     )
     db.add(assignment)
     await db.commit()
+
+    smtp = await _get_system_smtp(db)
+
+    result_welcome = send_user_welcome_email(
+        system_smtp_host=smtp["host"],
+        system_smtp_port=smtp["port"],
+        system_smtp_user=smtp["user"],
+        system_smtp_password=smtp["password"],
+        system_from_email=smtp["from_email"],
+        system_from_name=smtp["from_name"],
+        to_email=req.email,
+        user_name=req.full_name,
+        company_name=company.name,
+        password=req.password,
+    )
+    if not result_welcome.get("success"):
+        print(f"[EMAIL ERROR] Bienvenida a {req.email}: {result_welcome.get('error')}")
+
+    admins_result = await db.execute(
+        select(CompanyUser)
+        .join(UserCompany, UserCompany.user_id == CompanyUser.id)
+        .where(
+            UserCompany.company_id == req.company_id,
+            UserCompany.role == "admin",
+            UserCompany.is_active == True,
+            CompanyUser.is_active == True,
+        )
+    )
+    company_admins = admins_result.scalars().all()
+
+    for admin_user in company_admins:
+        result_notification = send_new_user_notification(
+            system_smtp_host=smtp["host"],
+            system_smtp_port=smtp["port"],
+            system_smtp_user=smtp["user"],
+            system_smtp_password=smtp["password"],
+            system_from_email=smtp["from_email"],
+            system_from_name=smtp["from_name"],
+            to_email=admin_user.email,
+            company_name=company.name,
+            new_user_name=req.full_name,
+            new_user_email=req.email,
+            new_user_role=req.role,
+        )
+        if not result_notification.get("success"):
+            print(f"[EMAIL ERROR] Notificación a {admin_user.email}: {result_notification.get('error')}")
 
     return {
         "id": user.id,

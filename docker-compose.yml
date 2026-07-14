@@ -30,6 +30,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: super-secret-key-change-in-production-12345
       ENVIRONMENT: development
+      PORT: 8000
       SEED_SMTP_HOST: ${SEED_SMTP_HOST:-smtp.gmail.com}
       SEED_SMTP_PORT: ${SEED_SMTP_PORT:-587}
       SEED_SMTP_USER: ${SEED_SMTP_USER:-}
