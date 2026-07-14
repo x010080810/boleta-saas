@@ -1,5 +1,6 @@
 import os
 import boto3
+from botocore.config import Config
 from typing import Optional
 from app.core.config import settings
 
@@ -16,6 +17,7 @@ def _get_s3():
             aws_access_key_id=settings.SUPABASE_S3_ACCESS_KEY,
             aws_secret_access_key=settings.SUPABASE_S3_SECRET_KEY,
             region_name=settings.SUPABASE_S3_REGION,
+            config=Config(signature_version='s3v4'),
         )
     return _s3_client
 
