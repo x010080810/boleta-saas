@@ -1,17 +1,15 @@
 # Boleta SaaS — Resumen de Mantenimiento
 
-## Stack
+## Stack actual
 
 | Componente | Servicio | URL / Acceso |
 |---|---|---|
 | Frontend | Vercel | https://boleta-saas.vercel.app |
 | Backend API | Railway | https://boleta-saas-production.up.railway.app |
-| Base de Datos | Supabase | `db.eryogftdkxuxyfrilstq.supabase.co` |
-| Storage (PDFs) | Supabase S3 | Bucket `payslips` |
-| Redis | Upstash | `sharp-lizard-160244.upstash.io:6379` |
-| Email | Mailtrap | https://mailtrap.io |
-| Email (fallback) | Resend | https://resend.com |
-| Email (fallback) | SendGrid | https://sendgrid.com |
+| Base de Datos | Supabase PostgreSQL | `db.eryogftdkxuxyfrilstq.supabase.co:5432` |
+| Storage (PDFs + backups) | Supabase S3 | Bucket `payslips` / `backups` |
+| Redis (Celery broker) | Upstash | `sharp-lizard-160244.upstash.io:6379` |
+| Email activo | Mailtrap sandbox | https://mailtrap.io |
 | Código | GitHub | https://github.com/x010080810/boleta-saas |
 
 ---
@@ -21,61 +19,25 @@
 | URL | Descripción |
 |---|---|
 | https://boleta-saas.vercel.app | Frontend (usuarios finales) |
-| https://boleta-saas-production.up.railway.app | Backend API |
 | https://boleta-saas-production.up.railway.app/api/health | Health check |
-| https://boleta-saas-production.up.railway.app/api/setup | Setup super admin (POST) |
 | https://boleta-saas-production.up.railway.app/docs | Swagger UI (FastAPI docs) |
 
 ---
 
-## Credenciales de acceso
+## Credenciales de super admin
 
-### Super Admin (sistema)
 | Campo | Valor |
 |---|---|
 | Email | `jn835513@gmail.com` |
 | Password | `66*z$3nZ093ZpIyZ` |
 
-> **Nota:** Para regenerar, ejecutar `POST /api/setup` con header `X-Setup-Key: sNWOnUaWDrWSYSmlTj2Mn8SeJUDABZhstoEIA_B6v0Q`. Genera nueva password automáticamente.
-
----
-
-### App Password de Gmail (16 dígitos)
-
-Para que el sistema pueda enviar correos SMTP desde `jn835513@gmail.com` (cuando esté en un VPS que no bloquee puertos):
-
-1. Ir a https://myaccount.google.com/security
-2. Activar **Verificación en dos pasos** (si no lo está)
-3. Ir a **Contraseñas de aplicaciones** (buscar en la barra de Google)
-4. Seleccionar **Correo** + **Windows** (u otro dispositivo)
-5. Copiar la **contraseña de 16 dígitos** que genera
-
----
-
-## Configuración SMTP del Sistema (en el frontend)
-
-Al entrar como super admin, ir a **Configuración del Sistema** → **SMTP** y configurar:
-
-| Campo | Valor |
-|---|---|
-| Host | `smtp.gmail.com` |
-| Puerto | `587` |
-| Usuario | `jn835513@gmail.com` |
-| Password | App Password de 16 dígitos (generado desde tu Gmail) |
-| Email from | `jn835513@gmail.com` |
-| Nombre from | `Boleta SaaS` |
-
-> **Importante en Railway:** Railway bloquea puertos SMTP (587/465/25). Esta configuración no funciona en Railway. El envío real usa **Mailtrap** automáticamente (HTTPS). La config SMTP se usa solo como `Reply-To`. Cuando el backend esté en un VPS sin bloqueo de puertos, el SMTP funcionará directamente.
-
-### Configuración SMTP de cada empresa (Reply-To)
-
-Cada empresa configura su propio Gmail en **Empresa** → **Configuración** → **SMTP**. Esa dirección se usa como `Reply-To` en los correos. El envío real sigue yendo por Mailtrap.
+Para regenerar, ejecutar `POST /api/setup` con header `X-Setup-Key: sNWOnUaWDrWSYSmlTj2Mn8SeJUDABZhstoEIA_B6v0Q`.
 
 ---
 
 ## Variables de entorno — Railway
 
-Configuradas en https://railway.app → dashboard → `backend` → Variables
+Configuradas en https://railway.app → dashboard → Variables
 
 | Variable | Valor |
 |---|---|
@@ -86,10 +48,9 @@ Configuradas en https://railway.app → dashboard → `backend` → Variables
 | `FRONTEND_URL` | `https://boleta-saas.vercel.app` |
 | `MAILTRAP_API_TOKEN` | `97868e26191c0f30a752675049347812` |
 | `RESEND_API_KEY` | `re_4t7y3QyR_PR87vT8da2uquBdstW7Yq32u` |
-| `RESEND_FROM_EMAIL` | `jn835513@gmail.com` |
 | `SUPABASE_S3_ENDPOINT` | `https://eryogftdkxuxyfrilstq.supabase.co/storage/v1/s3` |
-| `SUPABASE_S3_ACCESS_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyeW9nZnRka3h1eHlmcmlsc3RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MDYwNzQsImV4cCI6MjA5OTM4MjA3NH0.POOeJBkus8VqrqWBXZwiCx2MyeHLPtbgauNDqTDFkDg` |
-| `SUPABASE_S3_SECRET_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyeW9nZnRka3h1eHlmcmlsc3RxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzgwNjA3NCwiZXhwIjoyMDk5MzgyMDc0fQ.lPl0uIzwtG5VpD2Ztb0BjBszZy_j9h2aFlXwE48ajM0` |
+| `SUPABASE_S3_ACCESS_KEY` | (S3-specific key en Railway) |
+| `SUPABASE_S3_SECRET_KEY` | (S3-specific key en Railway) |
 | `SUPABASE_S3_REGION` | `sa-east-1` |
 | `STORAGE_BUCKET` | `payslips` |
 | `SUPABASE_S3_PUBLIC_URL` | `https://eryogftdkxuxyfrilstq.supabase.co/storage/v1/object/public/payslips` |
@@ -100,81 +61,173 @@ Configuradas en https://railway.app → dashboard → `backend` → Variables
 
 ### Supabase
 - URL: https://supabase.com → dashboard → proyecto `eryogftdkxuxyfrilstq`
-- Tablas: companies, company_users, employees, pay_slips, payroll_uploads, email_logs, monthly_send_quotas, license_history, super_admins, system_settings, webhook_events
-- Storage: bucket `payslips` (PDFs generados)
+- BD PostgreSQL + S3-compatible Storage
+- 14 tablas: super_admins, companies, company_users, user_company_assignments, employees, employee_company_assignments, payroll_uploads, pay_slips, unregistered_workers, email_logs, license_history, system_settings, monthly_send_quotas, webhook_events
+- Buckets: `payslips` (PDFs), `backups` (backups BD)
 
 ### Upstash Redis
 - URL: https://console.upstash.com
-- Base de datos: `sharp-lizard-160244` (plan Free)
-- Usado como broker/backend de Celery
+- DB: `sharp-lizard-160244` (Free)
+- Broker/backend de Celery (colas de tareas)
 
-### Mailtrap (email activo)
+### Mailtrap (email activo — sandbox)
 - URL: https://mailtrap.io
-- Email API Token: `97868e26191c0f30a752675049347812`
-- Sandbox domain: `demomailtrap.co`
-- Recipientes autorizados: `jn835513@gmail.com`
-- **Límite:** 1000 emails/mes (plan Free)
+- API Token en Railway
+- **Sandbox:** reescribe el `from` a `@demomailtrap.co`. Solo entrega a destinatarios autorizados.
+- **Límite:** 1000 emails/mes (Free)
+- **Propósito:** Solo para pruebas. No se puede usar con `from` real de la empresa.
 
-### Resend (fallback)
+### Resend (fallback inactivo)
 - URL: https://resend.com
-- API Key: `re_4t7y3QyR_PR87vT8da2uquBdstW7Yq32u`
-- Estado: **inactivo** (requiere dominio verificado para enviar a destinatarios arbitrarios)
+- API Key configurada en Railway
+- **Inactivo:** requiere dominio verificado para enviar a destinatarios arbitrarios
+- Será útil cuando se verifique dominio propio (ej. `boleta.oteroasociados.com.pe`)
 
 ### Vercel
 - URL: https://vercel.com → dashboard → proyecto `boleta-saas`
-- Frontend desplegado
-- Env var requerida: `VITE_API_URL` = `https://boleta-saas-production.up.railway.app`
+- Frontend desplegado automáticamente desde `main` de GitHub
+- Env var: `VITE_API_URL` = `https://boleta-saas-production.up.railway.app`
 
 ### GitHub
 - URL: https://github.com/x010080810/boleta-saas
-- Rama: `main` (auto-deploy a Railway + Vercel)
-- Push protection: bloquea secrets (OAuth credentials, etc.)
-- .gitattributes: LF line endings para `.sh`, `.py`, `Dockerfile`
+- Rama `main` con auto-deploy a Railway + Vercel
+- Push protection bloquea secrets
+
+---
+
+## Email: estado actual y hoja de ruta
+
+### Problema
+Railway **bloquea SMTP** (puertos 25/465/587). La única forma de enviar correos es vía API HTTPS.
+Mailtrap sandbox **reescribe el `from`**, por lo que el correo no llega desde la dirección real de la empresa.
+
+### Requisito
+El correo debe originarse desde la dirección real de la empresa (ej. `rrhh@empresa.com`), no desde un dominio genérico.
+
+### Solución planificada: Gmail API (OAuth2)
+- Usa HTTPS (puerto 443) → funciona en Railway
+- Preserva el `from` real de la cuenta Gmail de cada empresa
+- Cada empresa configura su propio Gmail OAuth2 token
+- Sin límite de destinatarios (sujeto a cuotas de Gmail)
+
+### Mientras tanto
+- Mailtrap es el método activo para pruebas con `from` reescrito
+- `Reply-To` se configura al email real de la empresa (para que las respuestas lleguen al destinatario correcto)
+- Resend está configurado como respaldo cuando se active con dominio verificado
+- SendGrid y SMTP directo fueron **removidos** (inactivos, sin API key)
 
 ---
 
 ## Orden de envío de email
 
-Cuando se envía una boleta, el sistema prueba en este orden:
+1. **Mailtrap** (si `MAILTRAP_API_TOKEN` configurado) — **método activo actual**
+2. **Resend** (si `RESEND_API_KEY` configurado) — inactivo (falta dominio verificado)
+3. **Gmail API** (cuando se implemente OAuth2)
+4. ~~SMTP directo~~ — bloqueado en Railway (removido)
 
-1. **Resend** → si `RESEND_API_KEY` configurado
-2. **Gmail API** → si `GMAIL_TOKEN_JSON` configurado
-3. **SendGrid** → si `SENDGRID_API_KEY` configurado
-4. **Mailtrap** → si `MAILTRAP_API_TOKEN` configurado ← **activo ahora**
-5. **SMTP directo** → bloqueado en Railway (puertos 587/465/25)
-
-**Comportamiento actual:** Mailtrap es el método activo. El remitente se muestra como `usuario@demomailtrap.co` y el `Reply-To` es el email configurado por la empresa.
+El sistema prueba cada método en orden. Si uno falla, pasa al siguiente.
 
 ---
 
-## Comandos útiles
+## Flujo del proceso (subir planilla → boleta enviada)
 
-### Regenerar super admin
-```powershell
-curl.exe -s -X POST https://boleta-saas-production.up.railway.app/api/setup `
-  -H "X-Setup-Key: sNWOnUaWDrWSYSmlTj2Mn8SeJUDABZhstoEIA_B6v0Q"
+```
+1. SUBIR EXCEL
+   POST /uploads → valida archivo (.xls/.xlsx), guarda en /tmp,
+   parsea con pandas, crea PayrollUpload (estado: pending), genera ticket
+
+2. PREVISUALIZAR
+   GET /uploads/{id}/preview → parsea Excel, cruza empleados vs. maestro,
+   muestra tabla con detección de columnas
+
+3. CONFIRMAR Y PROCESAR
+   POST /uploads/{id}/process → cambia estado a "processing",
+   dispara Celery task en segundo plano, retorna inmediato
+
+4. CELERY TASK (background)
+   a. Parsear Excel nuevamente
+   b. Verificar cuota del mes (MonthlySendQuota)
+   c. Por cada empleado:
+      - Buscar en Employee (maestro)
+      - Resolver email destino
+      - Generar PDF: Jinja2 → HTML → WeasyPrint → PyMuPDF (AES-128,
+        password = nro documento)
+      - Subir PDF a Supabase S3
+      - Crear PaySlip record
+      - Si hay cuota: enviar email (Mailtrap vía HTTPS con PDF adjunto)
+      - Si no hay cuota: marcar "no_enviado_sin_saldo"
+   d. Actualizar contadores del upload
+   e. Marcar upload como "completed"
+   f. Enviar email de notificación a la empresa
+   g. Commit en BD
+
+5. VER REPORTE
+   GET /uploads/{id}/report → resumen, observaciones, detalle envíos
+   GET /uploads/{id}/boletas → lista de boletas con estado de envío
+   GET /uploads/{id}/status → estado actual del proceso
+
+6. DESCARGAR
+   GET /boletas/{id}/download → PDF individual desde S3
+   GET /uploads/{id}/download-all → ZIP con todos los PDFs desde S3
+
+7. RE-ENVIAR
+   POST /uploads/{id}/resend → re-envía boletas seleccionadas
+   (mismo flujo de email)
 ```
 
-### Health check
-```powershell
-curl.exe -s https://boleta-saas-production.up.railway.app/api/health
-```
+### Estados de un upload
+- `pending` → recién subido, sin procesar. Se puede eliminar con `DELETE`.
+- `processing` → Celery task ejecutándose (polling cada 3s desde frontend)
+- `completed` → proceso terminado exitosamente
+- `failed` → error durante el procesamiento
 
-### Login super admin
-```powershell
-$body = '{"email":"jn835513@gmail.com","password":"66*z$3nZ093ZpIyZ"}'
-curl.exe -s -X POST https://boleta-saas-production.up.railway.app/api/auth/super-login `
-  -H "Content-Type: application/json" -d $body
-```
+### Tickets "pending" abandonados
+Si un usuario sube un Excel pero **nunca** hace clic en "Confirmar y Procesar", el ticket pending se elimina automáticamente al:
+- Navegar a otra página (cleanup al desmontar componente)
+- Subir otro Excel (se reemplaza)
+- Hacer clic en "Procesar ahora" desde la página del reporte
 
 ---
 
-## Mantenimiento diario
+## API — Endpoints relevantes
 
-- **Backups:** Se ejecutan automáticamente via Celery Beat y se suben a Supabase S3 bucket `backups/`
-- **Licencias:** Celery Beat verifica licencias próximas a vencer (15 días) y actualiza estados
-- **Monitoreo:** Revisar Railway logs (History) para errores de fondo
-- **PDFs:** Se almacenan en Supabase S3 (persistentes, no se pierden al redeploy)
+| Método | Ruta | Propósito |
+|---|---|---|
+| POST | `/companies/{id}/payroll/uploads` | Subir Excel |
+| GET | `/companies/{id}/payroll/uploads/{uid}/preview` | Previsualizar |
+| POST | `/companies/{id}/payroll/uploads/{uid}/process` | Procesar (dispara Celery) |
+| GET | `/companies/{id}/payroll/uploads/{uid}/status` | Estado del proceso |
+| GET | `/companies/{id}/payroll/uploads/{uid}/report` | Reporte completo |
+| GET | `/companies/{id}/payroll/uploads/{uid}/boletas` | Lista de boletas |
+| DELETE | `/companies/{id}/payroll/uploads/{uid}` | Eliminar upload pending |
+| GET | `/companies/{id}/payroll/boletas/{bid}/download` | Descargar PDF |
+| GET | `/companies/{id}/payroll/uploads/{uid}/download-all` | Descargar ZIP |
+| POST | `/companies/{id}/payroll/uploads/{uid}/resend` | Re-enviar boletas |
+| POST | `/admin/companies` | Crear empresa (super admin) |
+
+---
+
+## Tareas programadas (Celery Beat)
+
+Cada 24h se ejecutan:
+- `check_expiring_licenses` — notifica licencias próximas a vencer (15 días)
+- `update_license_states` — transición automática de estados de licencia
+- `backup_database` — backup de BD a Supabase S3 (bucket `backups/`)
+
+> **Nota:** `backup_database` requiere `pg_dump` en el contenedor. Si Railway no lo tiene instalado, falla silenciosamente.
+
+---
+
+## Mejoras recientes
+
+- Correo de bienvenida y notificación al super admin al crear empresa desde admin
+- Botón "Seleccionar archivo" / "Ningún archivo seleccionado" en español
+- Redirección correcta a reporte con `companyId` en ruta
+- Banner de upload pending con botón "Procesar ahora"
+- Reversión automática de tickets pending abandonados
+- Manejo de estado "pending" en reporte (ya no muestra pantalla vacía)
+- Read PDF desde Supabase S3 (no desde filesystem local)
+- Config `signature_version='s3v4'` en boto3
 
 ---
 
@@ -182,11 +235,12 @@ curl.exe -s -X POST https://boleta-saas-production.up.railway.app/api/auth/super
 
 | Limitación | Detalle |
 |---|---|
-| Email solo a autorizados | Mailtrap sandbox solo entrega a `jn835513@gmail.com`. Para más destinatarios, agregar en Mailtrap → Recipients |
-| Sin dominio custom | `oteroasociados.com.pe` no está conectado. Cuando tengas acceso DNS, se puede apuntar frontend y verificar dominio en Resend |
-| Railway Free | Contenedor duerme tras inactividad. Mejorar a Developer ($5/mes) desactiva sleep y da más RAM |
-| PDF en `/tmp` | WeasyPrint escribe en `/tmp` (efímero). No hay problema porque luego se sube a Supabase S3 |
-| Sin Background Functions | Procesar batch de 50+ boletas puede tardar. Celery Worker en el mismo contenedor lo maneja |
+| Email sandbox | Mailtrap reescribe `from`. Solo para pruebas a `jn835513@gmail.com` |
+| Sin Gmail API OAuth2 | El método que preservaría el `from` real de cada empresa aún no está implementado |
+| Sin dominio custom | `oteroasociados.com.pe` sin DNS configurado. Serviría para Resend y frontend propio |
+| Railway Free | Contenedor duerme tras inactividad. Developer ($5/mes) elimina sleep |
+| Backups rotos | `pg_dump` no disponible en Railway Docker. Backups automáticos no funcionan |
+| Scripts eliminados | `scripts/setup_gmail_oauth.py`, `check_mailtrap.py`, `check_railway.py` — obsoletos, removidos |
 
 ---
 
@@ -194,7 +248,7 @@ curl.exe -s -X POST https://boleta-saas-production.up.railway.app/api/auth/super
 
 | Servicio | Plan | Costo |
 |---|---|---|
-| Railway | Free (Developer $5 opcional) | $0 |
+| Railway | Free | $0 |
 | Supabase | Free | $0 |
 | Upstash | Free | $0 |
 | Mailtrap | Free (1000 emails/mes) | $0 |
