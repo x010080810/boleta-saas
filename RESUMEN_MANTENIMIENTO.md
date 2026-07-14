@@ -6,10 +6,10 @@
 |---|---|---|
 | Frontend | Vercel | https://boleta-saas.vercel.app |
 | Backend API | Railway | https://boleta-saas-production.up.railway.app |
-| Base de Datos | Supabase PostgreSQL | `db.eryogftdkxuxyfrilstq.supabase.co:5432` |
+| Base de Datos | Railway PostgreSQL | `tokaido.proxy.rlwy.net:45341` (add-on `protective-smile`) |
 | Storage (PDFs + backups) | Supabase S3 | Bucket `payslips` / `backups` |
 | Redis (Celery broker) | Upstash | `sharp-lizard-160244.upstash.io:6379` |
-| Email activo | Mailtrap sandbox | https://mailtrap.io |
+| Email activo | Resend (trial) | https://resend.com |
 | Código | GitHub | https://github.com/x010080810/boleta-saas |
 
 ---
@@ -42,12 +42,12 @@ Configuradas en https://railway.app → dashboard → Variables
 | Variable | Valor |
 |---|---|
 | `ENVIRONMENT` | `production` |
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:lI28KCz3mTYJ2bm5@db.eryogftdkxuxyfrilstq.supabase.co:5432/postgres` |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:RgqsoMkfPQrnuVJquvpxMwVhPuiIaaEm@tokaido.proxy.rlwy.net:45341/railway` |
 | `REDIS_URL` | `rediss://default:gQAAAAAAAnH0AAIgcDEyNDI5NTk4NWNjNDA0ZDdiYjI5MDBlMDk1NGI0OTNhOA@sharp-lizard-160244.upstash.io:6379` |
 | `SECRET_KEY` | `sNWOnUaWDrWSYSmlTj2Mn8SeJUDABZhstoEIA_B6v0Q` |
 | `FRONTEND_URL` | `https://boleta-saas.vercel.app` |
-| `MAILTRAP_API_TOKEN` | `97868e26191c0f30a752675049347812` |
-| `RESEND_API_KEY` | `re_4t7y3QyR_PR87vT8da2uquBdstW7Yq32u` |
+| `MAILTRAP_API_TOKEN` | `e6947423540394d97e879c51ad44a7de` |
+| `RESEND_API_KEY` | `re_gHS6yzqA_D4uzBiWMRNsWuiifYMEto5Wp` |
 | `SUPABASE_S3_ENDPOINT` | `https://eryogftdkxuxyfrilstq.supabase.co/storage/v1/s3` |
 | `SUPABASE_S3_ACCESS_KEY` | (S3-specific key en Railway) |
 | `SUPABASE_S3_SECRET_KEY` | (S3-specific key en Railway) |
@@ -59,29 +59,36 @@ Configuradas en https://railway.app → dashboard → Variables
 
 ## Servicios externos
 
-### Supabase
+### Supabase (solo Storage)
 - URL: https://supabase.com → dashboard → proyecto `eryogftdkxuxyfrilstq`
-- BD PostgreSQL + S3-compatible Storage
-- 14 tablas: super_admins, companies, company_users, user_company_assignments, employees, employee_company_assignments, payroll_uploads, pay_slips, unregistered_workers, email_logs, license_history, system_settings, monthly_send_quotas, webhook_events
+- S3-compatible Storage (NO base de datos)
 - Buckets: `payslips` (PDFs), `backups` (backups BD)
+- Acceso vía `SUPABASE_S3_ENDPOINT`, `SUPABASE_S3_ACCESS_KEY`, `SUPABASE_S3_SECRET_KEY`
+
+### Railway PostgreSQL
+- Host: `tokaido.proxy.rlwy.net:45341` (add-on en proyecto `protective-smile`)
+- DB: `railway`, User: `postgres`, Password en Railway variables
+- 14 tablas: super_admins, companies, company_users, user_company_assignments, employees, employee_company_assignments, payroll_uploads, pay_slips, unregistered_workers, email_logs, license_history, system_settings, monthly_send_quotas, webhook_events
 
 ### Upstash Redis
 - URL: https://console.upstash.com
 - DB: `sharp-lizard-160244` (Free)
 - Broker/backend de Celery (colas de tareas)
 
-### Mailtrap (email activo — sandbox)
-- URL: https://mailtrap.io
-- API Token en Railway
-- **Sandbox:** reescribe el `from` a `@demomailtrap.co`. Solo entrega a destinatarios autorizados.
-- **Límite:** 1000 emails/mes (Free)
-- **Propósito:** Solo para pruebas. No se puede usar con `from` real de la empresa.
-
-### Resend (fallback inactivo)
+### Resend (email activo — trial)
 - URL: https://resend.com
-- API Key configurada en Railway
-- **Inactivo:** requiere dominio verificado para enviar a destinatarios arbitrarios
-- Será útil cuando se verifique dominio propio (ej. `boleta.oteroasociados.com.pe`)
+- API Key configurada en Railway: `re_gHS6yzqA_D4uzBiWMRNsWuiifYMEto5Wp`
+- **Trial:** solo envía al dueño de la cuenta (`jn835513@gmail.com`). Para enviar a cualquier destinatario, verificar dominio en https://resend.com/domains
+- **Límite:** 100 emails/día (Free)
+- **Propósito:** Método principal de envío. Usa HTTPS (puerto 443) → funciona en Railway.
+- Cuando se verifique dominio propio (`oteroasociados-boletas-pago.com.pe`), cambiar `RESEND_FROM_EMAIL` en Railway.
+
+### Mailtrap (fallback — sandbox)
+- URL: https://mailtrap.io
+- API Token en Railway: `e6947423540394d97e879c51ad44a7de`
+- **Sandbox:** Solo entrega al dueño de la cuenta
+- **Límite:** 1000 emails/mes (Free)
+- **Propósito:** Fallback si Resend falla
 
 ### Vercel
 - URL: https://vercel.com → dashboard → proyecto `boleta-saas`
@@ -95,37 +102,37 @@ Configuradas en https://railway.app → dashboard → Variables
 
 ---
 
-## Email: estado actual y hoja de ruta
+## Email: estado actual
 
-### Problema
-Railway **bloquea SMTP** (puertos 25/465/587). La única forma de enviar correos es vía API HTTPS.
-Mailtrap sandbox **reescribe el `from`**, por lo que el correo no llega desde la dirección real de la empresa.
+### Diferencias entre Local y Web (Railway)
 
-### Requisito
-El correo debe originarse desde la dirección real de la empresa (ej. `rrhh@empresa.com`), no desde un dominio genérico.
+| Aspecto | Local (Docker) | Web (Railway) |
+|---|---|---|
+| SMTP directo | ✅ Funciona (puerto 587) | ❌ Puerto 587 bloqueado |
+| SMTP puerto 465 | ✅ Funciona | ✅ Funciona |
+| Resend API | No configurado | ✅ Activo (trial, solo al dueño `jn835513@gmail.com`) |
+| Mailtrap API | No configurado | ⚠️ Fallback (trial, solo al dueño) |
+| Registro empresa | Email va al destinatario real | Email va a `jn835513@gmail.com` |
 
-### Solución planificada: Gmail API (OAuth2)
-- Usa HTTPS (puerto 443) → funciona en Railway
-- Preserva el `from` real de la cuenta Gmail de cada empresa
-- Cada empresa configura su propio Gmail OAuth2 token
-- Sin límite de destinatarios (sujeto a cuotas de Gmail)
+### Flujo de envío en Railway
+1. **Resend** (vía API HTTPS) — método principal
+2. **Mailtrap** (vía API HTTPS) — fallback si Resend falla
+3. **SMTP** (puerto 465) — último recurso, solo si las APIs fallan
 
-### Mientras tanto
-- Mailtrap es el método activo para pruebas con `from` reescrito
-- `Reply-To` se configura al email real de la empresa (para que las respuestas lleguen al destinatario correcto)
-- Resend está configurado como respaldo cuando se active con dominio verificado
-- SendGrid y SMTP directo fueron **removidos** (inactivos, sin API key)
+### Para producción (enviar a cualquier destinatario)
+- Opción A: Verificar dominio en Resend (`oteroasociados-boletas-pago.com.pe`) → cambiar `RESEND_FROM_EMAIL`
+- Opción B: Cada empresa usa SMTP directo desde Local (Docker)
 
 ---
 
-## Orden de envío de email
+## Orden de envío de email (local)
 
-1. **Mailtrap** (si `MAILTRAP_API_TOKEN` configurado) — **método activo actual**
-2. **Resend** (si `RESEND_API_KEY` configurado) — inactivo (falta dominio verificado)
-3. **Gmail API** (cuando se implemente OAuth2)
-4. ~~SMTP directo~~ — bloqueado en Railway (removido)
+1. **Resend** (si `RESEND_API_KEY` configurado) — solo si hay API key
+2. **Mailtrap** (si `MAILTRAP_API_TOKEN` configurado) — solo si hay token
+3. **SMTP** (puerto 465/587) — siempre que haya credenciales en BD/env
 
-El sistema prueba cada método en orden. Si uno falla, pasa al siguiente.
+> En local, como no hay API keys configuradas, envía directo por SMTP.
+> En Railway, prueba primero Resend → Mailtrap → SMTP (puerto 465).
 
 ---
 
@@ -154,7 +161,7 @@ El sistema prueba cada método en orden. Si uno falla, pasa al siguiente.
         password = nro documento)
       - Subir PDF a Supabase S3
       - Crear PaySlip record
-      - Si hay cuota: enviar email (Mailtrap vía HTTPS con PDF adjunto)
+      - Si hay cuota: enviar email (Resend/Mailtrap/SMTP según entorno y credenciales, con PDF adjunto)
       - Si no hay cuota: marcar "no_enviado_sin_saldo"
    d. Actualizar contadores del upload
    e. Marcar upload como "completed"
@@ -220,6 +227,11 @@ Cada 24h se ejecutan:
 
 ## Mejoras recientes
 
+- PDF: conceptos con valor >0 ahora se muestran (fix case-insensitive en `tasks/payroll.py`)
+- Refactor completo de `email_sender.py`: método SMTP unificado, todas las funciones simplificadas
+- Notificaciones al crear usuario desde admin: bienvenida al nuevo usuario + aviso a admins de la empresa
+- Puerto SMTP cambiado a 465 para compatibilidad con Railway
+- Resend como método principal de envío (trial, envía al dueño de la cuenta)
 - Correo de bienvenida y notificación al super admin al crear empresa desde admin
 - Botón "Seleccionar archivo" / "Ningún archivo seleccionado" en español
 - Redirección correcta a reporte con `companyId` en ruta
@@ -234,13 +246,14 @@ Cada 24h se ejecutan:
 ## Limitaciones conocidas
 
 | Limitación | Detalle |
-|---|---|
-| Email sandbox | Mailtrap reescribe `from`. Solo para pruebas a `jn835513@gmail.com` |
-| Sin Gmail API OAuth2 | El método que preservaría el `from` real de cada empresa aún no está implementado |
-| Sin dominio custom | `oteroasociados.com.pe` sin DNS configurado. Serviría para Resend y frontend propio |
+|---|---|---|
+| Resend trial | Solo envía al dueño de la cuenta (`jn835513@gmail.com`). No puede enviar a destinatarios arbitrarios sin dominio verificado |
+| Mailtrap sandbox | Misma limitación que Resend: solo al dueño de la cuenta |
+| Sin dominio verificado | `oteroasociados-boletas-pago.com.pe` sin DNS configurado. Resend no puede enviar desde ese dominio |
+| Railway puerto 587 bloqueado | SMTP en puerto 587 no funciona. Se usa puerto 465 como alternativa |
 | Railway Free | Contenedor duerme tras inactividad. Developer ($5/mes) elimina sleep |
 | Backups rotos | `pg_dump` no disponible en Railway Docker. Backups automáticos no funcionan |
-| Scripts eliminados | `scripts/setup_gmail_oauth.py`, `check_mailtrap.py`, `check_railway.py` — obsoletos, removidos |
+| Local vs Web | En Local el SMTP funciona directo; en Web todo debe pasar por `jn835513@gmail.com` |
 
 ---
 
@@ -248,10 +261,10 @@ Cada 24h se ejecutan:
 
 | Servicio | Plan | Costo |
 |---|---|---|
-| Railway | Free | $0 |
-| Supabase | Free | $0 |
-| Upstash | Free | $0 |
-| Mailtrap | Free (1000 emails/mes) | $0 |
-| Vercel | Hobby | $0 |
-| Resend | Free (inactivo) | $0 |
+| Railway (API + PostgreSQL) | Free | $0 |
+| Supabase (S3 Storage) | Free | $0 |
+| Upstash Redis | Free | $0 |
+| Vercel (Frontend) | Hobby | $0 |
+| Resend (Email) | Free (100 emails/día) | $0 |
+| Mailtrap (Email fallback) | Free (1000 emails/mes) | $0 |
 | **Total** | | **$0/mes** |
