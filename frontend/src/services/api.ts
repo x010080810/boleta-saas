@@ -75,6 +75,8 @@ export const payrollApi = {
     api.get(`/companies/${companyId}/payroll/uploads/${uploadId}/preview`),
   process: (companyId: string, uploadId: string) =>
     api.post(`/companies/${companyId}/payroll/uploads/${uploadId}/process`),
+  deletePending: (companyId: string, uploadId: string) =>
+    api.delete(`/companies/${companyId}/payroll/uploads/${uploadId}`),
   status: (companyId: string, uploadId: string) =>
     api.get(`/companies/${companyId}/payroll/uploads/${uploadId}/status`),
   report: (companyId: string, uploadId: string) =>

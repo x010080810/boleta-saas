@@ -262,6 +262,37 @@ async def process_upload(
     }
 
 
+@router.delete("/uploads/{upload_id}")
+async def delete_pending_upload(
+    company_id: str,
+    upload_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await get_company_and_check_access(company_id, current_user, db)
+
+    result = await db.execute(
+        select(PayrollUpload).where(
+            PayrollUpload.id == upload_id,
+            PayrollUpload.company_id == company_id,
+        )
+    )
+    upload = result.scalar_one_or_none()
+    if not upload:
+        raise HTTPException(status_code=404, detail="Carga no encontrada")
+
+    if upload.estado != "pending":
+        raise HTTPException(status_code=400, detail="Solo se puede eliminar cargas pendientes")
+
+    if upload.file_path and os.path.exists(upload.file_path):
+        os.remove(upload.file_path)
+
+    await db.delete(upload)
+    await db.commit()
+
+    return {"message": "Carga pendiente eliminada"}
+
+
 @router.get("/uploads/{upload_id}/boletas")
 async def list_boletas(
     company_id: str,

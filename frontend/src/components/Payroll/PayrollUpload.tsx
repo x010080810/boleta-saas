@@ -9,6 +9,9 @@ export default function PayrollUpload() {
   const { selectedCompany, companies, isSuperAdmin, selectCompany } = useAuth();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploadIdRef = useRef<string | null>(null);
+  const companyIdRef = useRef<string | null>(null);
+  const processedRef = useRef(false);
   const [activeCompany, setActiveCompany] = useState<Company | null>(selectedCompany);
   const [file, setFile] = useState<File | null>(null);
   const [tipo, setTipo] = useState('ordinaria');
@@ -22,12 +25,30 @@ export default function PayrollUpload() {
 
   useEffect(() => {
     setActiveCompany(selectedCompany);
+    if (selectedCompany) companyIdRef.current = selectedCompany.id;
   }, [selectedCompany]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadIdRef.current && !processedRef.current && companyIdRef.current) {
+        payrollApi.deletePending(companyIdRef.current, uploadIdRef.current).catch(() => {});
+      }
+    };
+  }, []);
 
   const handleUpload = async () => {
     if (!file || !activeCompany) return;
+
+    if (uploadIdRef.current && !processedRef.current) {
+      try {
+        await payrollApi.deletePending(activeCompany.id, uploadIdRef.current);
+      } catch { /* ignore */ }
+    }
+
     setLoading(true);
     setError('');
+    setPreview(null);
+    setResult(null);
     const formData = new FormData();
     formData.append('file', file);
     formData.append('tipo_planilla', tipo);
@@ -35,6 +56,9 @@ export default function PayrollUpload() {
     formData.append('periodo_ano', String(anio));
     try {
       const res = await payrollApi.upload(activeCompany.id, formData);
+      uploadIdRef.current = res.data.upload_id;
+      companyIdRef.current = activeCompany.id;
+      processedRef.current = false;
       setResult(res.data);
       loadPreview(res.data.upload_id);
     } catch (err: any) {
@@ -55,6 +79,7 @@ export default function PayrollUpload() {
     setProcessing(true);
     try {
       const res = await payrollApi.process(activeCompany.id, result.upload_id);
+      processedRef.current = true;
       navigate(`/payroll/report/${activeCompany.id}/${result.upload_id}`);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al procesar');
