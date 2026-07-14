@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { payrollApi } from '../../services/api';
-import { ArrowLeft, Download, Send, CheckCircle, AlertCircle, Clock, Ban, Loader } from 'lucide-react';
+import { ArrowLeft, Download, Send, CheckCircle, AlertCircle, Clock, Ban, Loader, Play } from 'lucide-react';
 import type { PaySlip } from '../../types';
 
 export default function PayrollReport() {
   const { companyId, uploadId } = useParams();
   const { selectedCompany } = useAuth();
+  const navigate = useNavigate();
   const [report, setReport] = useState<any>(null);
   const [boletas, setBoletas] = useState<PaySlip[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -17,6 +18,7 @@ export default function PayrollReport() {
   const [error, setError] = useState<string | null>(null);
   const [uploadFailed, setUploadFailed] = useState(false);
   const [uploadPending, setUploadPending] = useState(false);
+  const [processingPending, setProcessingPending] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
 
   const cid = companyId || selectedCompany?.id;
@@ -98,6 +100,23 @@ export default function PayrollReport() {
     }
   };
 
+  const handleProcessPending = async () => {
+    if (!cid || !uploadId) return;
+    setProcessingPending(true);
+    try {
+      const res = await payrollApi.process(cid, uploadId);
+      setUploadPending(false);
+      setProcessing(true);
+      setMessage({ type: 'success', text: res.data.message || 'Procesamiento iniciado' });
+      setTimeout(() => setMessage(null), 4000);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || 'Error al iniciar procesamiento' });
+      setTimeout(() => setMessage(null), 4000);
+    } finally {
+      setProcessingPending(false);
+    }
+  };
+
   const handleDownload = async (boletaId: string) => {
     if (!cid) return;
     const res = await payrollApi.download(cid, boletaId);
@@ -165,9 +184,19 @@ export default function PayrollReport() {
       </div>
 
       {uploadPending && (
-        <div className="mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-2 bg-yellow-50 text-yellow-700 border border-yellow-200">
-          <Clock size={16} />
-          Esta carga está pendiente de procesamiento. Sube los datos y haz clic en "Confirmar y Procesar" para iniciar.
+        <div className="mb-6 px-4 py-3 rounded-xl text-sm bg-yellow-50 text-yellow-700 border border-yellow-200">
+          <div className="flex items-center gap-2">
+            <Clock size={16} />
+            <span className="flex-1">Esta carga está pendiente de procesamiento.</span>
+            <button
+              onClick={handleProcessPending}
+              disabled={processingPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 disabled:opacity-50"
+            >
+              {processingPending ? <Loader size={14} className="animate-spin" /> : <Play size={14} />}
+              {processingPending ? 'Procesando...' : 'Procesar ahora'}
+            </button>
+          </div>
         </div>
       )}
       {uploadFailed && (
