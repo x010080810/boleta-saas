@@ -119,9 +119,9 @@ def process_payroll_upload(self, upload_id: str, company_id: str):
                     "accion": accion,
                 })
 
-            ingresos = {k: v for k, v in emp.items() if k.startswith("ING_")}
-            descuentos = {k: v for k, v in emp.items() if k.startswith("DESC_")}
-            aportaciones = {k: v for k, v in emp.items() if k.startswith("APOR_")}
+            ingresos = {k: v for k, v in emp.items() if k.lower().startswith("ing_")}
+            descuentos = {k: v for k, v in emp.items() if k.lower().startswith("desc_")}
+            aportaciones = {k: v for k, v in emp.items() if k.lower().startswith("apor_")}
 
             pdf_path, pdf_password = generate_payslip_pdf(
                 employee_name=emp.get("apellidos_nombres", ""),
