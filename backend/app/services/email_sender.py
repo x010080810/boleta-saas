@@ -113,16 +113,31 @@ def _dispatch_email(
     pdf_bytes: bytes = b"",
     pdf_filename: str = "",
 ) -> dict:
+    methods = []
     if _get_resend_api_key():
-        return _send_via_resend(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)
+        methods.append(("Resend", lambda: _send_via_resend(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)))
     if _has_gmail_token():
-        return _send_via_gmail(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)
+        methods.append(("Gmail API", lambda: _send_via_gmail(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)))
     api_key = _get_sendgrid_api_key()
     if api_key:
-        return _send_via_sendgrid(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)
+        methods.append(("SendGrid", lambda: _send_via_sendgrid(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)))
     if _get_mailtrap_api_token():
-        return _send_via_mailtrap(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)
-    return {"success": False, "error": "No hay metodo de envio configurado (Resend, Gmail API, SendGrid ni Mailtrap)"}
+        methods.append(("Mailtrap", lambda: _send_via_mailtrap(to_email, subject, html_body, from_email, from_name, pdf_bytes, pdf_filename)))
+
+    if not methods:
+        return {"success": False, "error": "No hay metodo de envio configurado (Resend, Gmail API, SendGrid ni Mailtrap)"}
+
+    errors = []
+    for name, send_fn in methods:
+        try:
+            result = send_fn()
+            if result.get("success"):
+                return result
+            errors.append(f"{name}: {result.get('error', 'error desconocido')}")
+        except Exception as e:
+            errors.append(f"{name}: {str(e)}")
+
+    return {"success": False, "error": "; ".join(errors)}
 
 
 def _send_via_sendgrid(
