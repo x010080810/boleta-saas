@@ -8,7 +8,7 @@
 | Backend API | Railway | https://boleta-saas-production.up.railway.app |
 | Base de Datos | Railway PostgreSQL | `tokaido.proxy.rlwy.net:45341` (add-on `protective-smile`) |
 | Storage (PDFs + backups) | Supabase S3 | Bucket `payslips` / `backups` |
-| Redis (Celery broker) | Upstash | `sharp-lizard-160244.upstash.io:6379` |
+| Redis (Celery broker) | Upstash | (ver `REDIS_URL` en Railway) |
 | Email activo | Resend (trial) | https://resend.com |
 | Código | GitHub | https://github.com/x010080810/boleta-saas |
 
@@ -31,7 +31,7 @@
 | Email | `jn835513@gmail.com` |
 | Password | `tLTEIxODb!p!d^X1` |
 
-Para regenerar, ejecutar `POST /api/setup` con header `X-Setup-Key: sNWOnUaWDrWSYSmlTj2Mn8SeJUDABZhstoEIA_B6v0Q`.
+Para regenerar, ejecutar `POST /api/setup` con header `X-Setup-Key` (ver valor en Railway `SECRET_KEY`).
 
 ---
 
@@ -42,25 +42,25 @@ Configuradas en https://railway.app → dashboard → Variables
 | Variable | Valor |
 |---|---|
 | `ENVIRONMENT` | `production` |
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:RgqsoMkfPQrnuVJquvpxMwVhPuiIaaEm@tokaido.proxy.rlwy.net:45341/railway` |
-| `REDIS_URL` | `rediss://default:gQAAAAAAAnH0AAIgcDEyNDI5NTk4NWNjNDA0ZDdiYjI5MDBlMDk1NGI0OTNhOA@sharp-lizard-160244.upstash.io:6379` |
-| `SECRET_KEY` | `sNWOnUaWDrWSYSmlTj2Mn8SeJUDABZhstoEIA_B6v0Q` |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:<password>@tokaido.proxy.rlwy.net:45341/railway` |
+| `REDIS_URL` | `rediss://default:<password>@sharp-lizard-160244.upstash.io:6379` |
+| `SECRET_KEY` | (generado en Railway) |
 | `FRONTEND_URL` | `https://boleta-saas.vercel.app` |
-| `MAILTRAP_API_TOKEN` | `e6947423540394d97e879c51ad44a7de` |
-| `RESEND_API_KEY` | `re_gHS6yzqA_D4uzBiWMRNsWuiifYMEto5Wp` |
-| `SUPABASE_S3_ENDPOINT` | `https://eryogftdkxuxyfrilstq.supabase.co/storage/v1/s3` |
+| `MAILTRAP_API_TOKEN` | (token en Railway dashboard) |
+| `RESEND_API_KEY` | (key en Railway dashboard) |
+| `SUPABASE_S3_ENDPOINT` | `https://<project>.supabase.co/storage/v1/s3` |
 | `SUPABASE_S3_ACCESS_KEY` | (S3-specific key en Railway) |
 | `SUPABASE_S3_SECRET_KEY` | (S3-specific key en Railway) |
 | `SUPABASE_S3_REGION` | `sa-east-1` |
 | `STORAGE_BUCKET` | `payslips` |
-| `SUPABASE_S3_PUBLIC_URL` | `https://eryogftdkxuxyfrilstq.supabase.co/storage/v1/object/public/payslips` |
+| `SUPABASE_S3_PUBLIC_URL` | `https://<project>.supabase.co/storage/v1/object/public/payslips` |
 
 ---
 
 ## Servicios externos
 
 ### Supabase (solo Storage)
-- URL: https://supabase.com → dashboard → proyecto `eryogftdkxuxyfrilstq`
+- URL: https://supabase.com → dashboard → proyecto Supabase (`eryogftdkxuxyfrilstq`)
 - S3-compatible Storage (NO base de datos)
 - Buckets: `payslips` (PDFs), `backups` (backups BD)
 - Acceso vía `SUPABASE_S3_ENDPOINT`, `SUPABASE_S3_ACCESS_KEY`, `SUPABASE_S3_SECRET_KEY`
@@ -72,12 +72,12 @@ Configuradas en https://railway.app → dashboard → Variables
 
 ### Upstash Redis
 - URL: https://console.upstash.com
-- DB: `sharp-lizard-160244` (Free)
+- DB: Upstash Redis Free (ver `REDIS_URL` en Railway)
 - Broker/backend de Celery (colas de tareas)
 
 ### Resend (email activo — trial)
 - URL: https://resend.com
-- API Key configurada en Railway: `re_gHS6yzqA_D4uzBiWMRNsWuiifYMEto5Wp`
+- API Key configurada en Railway (variable `RESEND_API_KEY`)
 - **Trial:** solo envía al dueño de la cuenta (`jn835513@gmail.com`). Para enviar a cualquier destinatario, verificar dominio en https://resend.com/domains
 - **Límite:** 100 emails/día (Free)
 - **Propósito:** Método principal de envío. Usa HTTPS (puerto 443) → funciona en Railway.
@@ -85,7 +85,7 @@ Configuradas en https://railway.app → dashboard → Variables
 
 ### Mailtrap (fallback — sandbox)
 - URL: https://mailtrap.io
-- API Token en Railway: `e6947423540394d97e879c51ad44a7de`
+- API Token en Railway (variable `MAILTRAP_API_TOKEN`)
 - **Sandbox:** Solo entrega al dueño de la cuenta
 - **Límite:** 1000 emails/mes (Free)
 - **Propósito:** Fallback si Resend falla
