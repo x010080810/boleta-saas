@@ -23,7 +23,7 @@ def send_via_resend(
 
     resend.api_key = api_key
 
-    sender_email = os.environ.get("RESEND_FROM_EMAIL") or "onboarding@resend.dev"
+    sender_email = "onboarding@resend.dev"
 
     params = {
         "from": sender_email,
