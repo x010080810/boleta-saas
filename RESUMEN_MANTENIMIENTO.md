@@ -29,7 +29,7 @@
 | Campo | Valor |
 |---|---|
 | Email | `jn835513@gmail.com` |
-| Password | `66*z$3nZ093ZpIyZ` |
+| Password | `tLTEIxODb!p!d^X1` |
 
 Para regenerar, ejecutar `POST /api/setup` con header `X-Setup-Key: sNWOnUaWDrWSYSmlTj2Mn8SeJUDABZhstoEIA_B6v0Q`.
 
