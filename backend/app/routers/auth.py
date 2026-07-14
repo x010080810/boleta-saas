@@ -92,7 +92,7 @@ async def register_company(req: RegisterCompanyRequest, request: Request, db: As
 
     notification_to = smtp["notification_email"] or ""
     super_result = await db.execute(select(SuperAdmin).where(SuperAdmin.is_active == True))
-    super_admin = super_result.first()
+    super_admin = super_result.scalars().first()
     if super_admin:
         if not notification_to:
             notification_to = super_admin.email
