@@ -55,7 +55,7 @@ export default function PayrollUpload() {
     setProcessing(true);
     try {
       const res = await payrollApi.process(activeCompany.id, result.upload_id);
-      navigate(`/payroll/report/${result.upload_id}`);
+      navigate(`/payroll/report/${activeCompany.id}/${result.upload_id}`);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al procesar');
     } finally {
@@ -140,12 +140,24 @@ export default function PayrollUpload() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Archivo Excel</label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 border-0 cursor-pointer"
+              >
+                Seleccionar archivo
+              </button>
+              <span className="text-sm text-gray-500">
+                {file ? file.name : 'Ningún archivo seleccionado'}
+              </span>
+            </div>
             <input
               type="file"
               ref={fileRef}
               accept=".xls,.xlsx"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="hidden"
             />
           </div>
 

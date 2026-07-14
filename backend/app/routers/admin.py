@@ -13,6 +13,7 @@ from app.models.system_settings import SystemSetting
 from app.schemas.company import LicenseUpdate, AdminCreateUserRequest, AdminAssignUserRequest, AdminUpdateAssignmentRequest, AdminCreateCompanyRequest, AdminCreateCompanyResponse
 from app.core.password_policy import validate_password, generate_secure_password
 from app.core.config import settings
+from app.services.email_sender import send_welcome_email, send_new_company_notification
 from datetime import date, datetime, timezone, timedelta
 
 router = APIRouter()
@@ -21,6 +22,20 @@ router = APIRouter()
 async def verify_super_admin(current_user: dict):
     if current_user["type"] != "super_admin":
         raise HTTPException(status_code=403, detail="Solo super administradores")
+
+
+async def _get_system_smtp(db: AsyncSession) -> dict:
+    result = await db.execute(select(SystemSetting))
+    db_settings = {r.key: r.value for r in result.scalars().all()}
+    return {
+        "host": db_settings.get("smtp_host") or settings.SYSTEM_SMTP_HOST,
+        "port": int(db_settings.get("smtp_port") or settings.SYSTEM_SMTP_PORT),
+        "user": db_settings.get("smtp_user") or settings.SYSTEM_SMTP_USER,
+        "password": db_settings.get("smtp_password") or settings.SYSTEM_SMTP_PASSWORD,
+        "from_email": db_settings.get("smtp_from_email") or settings.SYSTEM_SMTP_FROM_EMAIL,
+        "from_name": db_settings.get("smtp_from_name") or settings.SYSTEM_SMTP_FROM_NAME,
+        "notification_email": db_settings.get("notification_email") or "",
+    }
 
 
 @router.get("/companies")
@@ -113,6 +128,53 @@ async def admin_create_company(
     await db.flush()
 
     await db.commit()
+
+    smtp = await _get_system_smtp(db)
+    result_welcome = send_welcome_email(
+        system_smtp_host=smtp["host"],
+        system_smtp_port=smtp["port"],
+        system_smtp_user=smtp["user"],
+        system_smtp_password=smtp["password"],
+        system_from_email=smtp["from_email"],
+        system_from_name=smtp["from_name"],
+        to_email=req.admin_email,
+        admin_name=req.admin_full_name,
+        company_name=req.company_name,
+        company_ruc=req.company_ruc,
+        plan_envios=req.plan_envios_mes,
+        dias_vigencia=30,
+        licencia_inicio=str(req.licencia_inicio),
+        licencia_fin=str(req.licencia_fin),
+    )
+    if not result_welcome.get("success"):
+        print(f"[EMAIL ERROR] Bienvenida a {req.admin_email}: {result_welcome.get('error')}")
+
+    notification_to = smtp["notification_email"]
+    if not notification_to:
+        super_result = await db.execute(select(SuperAdmin).where(SuperAdmin.is_active == True))
+        super_admin = super_result.scalar_one_or_none()
+        if super_admin:
+            notification_to = super_admin.email
+
+    if notification_to:
+        result_notification = send_new_company_notification(
+            system_smtp_host=smtp["host"],
+            system_smtp_port=smtp["port"],
+            system_smtp_user=smtp["user"],
+            system_smtp_password=smtp["password"],
+            system_from_email=smtp["from_email"],
+            system_from_name=smtp["from_name"],
+            to_email=notification_to,
+            company_name=req.company_name,
+            company_ruc=req.company_ruc,
+            admin_email=req.admin_email,
+            admin_name=req.admin_full_name,
+            plan_envios=req.plan_envios_mes,
+            licencia_inicio=str(req.licencia_inicio),
+            licencia_fin=str(req.licencia_fin),
+        )
+        if not result_notification.get("success"):
+            print(f"[EMAIL ERROR] Notificacion a {notification_to}: {result_notification.get('error')}")
 
     return AdminCreateCompanyResponse(
         company_id=company.id,

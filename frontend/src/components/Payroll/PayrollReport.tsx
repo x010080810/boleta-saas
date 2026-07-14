@@ -16,6 +16,7 @@ export default function PayrollReport() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadFailed, setUploadFailed] = useState(false);
+  const [uploadPending, setUploadPending] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
 
   const cid = companyId || selectedCompany?.id;
@@ -31,6 +32,7 @@ export default function PayrollReport() {
       setBoletas(bol.data);
       if (st.data.estado === 'processing') setProcessing(true);
       if (st.data.estado === 'failed') setUploadFailed(true);
+      if (st.data.estado === 'pending') setUploadPending(true);
     }).catch((err) => {
       setError(err.response?.data?.detail || 'Error al cargar reporte');
       console.error(err);
@@ -162,6 +164,12 @@ export default function PayrollReport() {
         </div>
       </div>
 
+      {uploadPending && (
+        <div className="mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-2 bg-yellow-50 text-yellow-700 border border-yellow-200">
+          <Clock size={16} />
+          Esta carga está pendiente de procesamiento. Sube los datos y haz clic en "Confirmar y Procesar" para iniciar.
+        </div>
+      )}
       {uploadFailed && (
         <div className="mb-6 px-4 py-3 rounded-xl text-sm flex items-center gap-2 bg-red-50 text-red-700 border border-red-200">
           <AlertCircle size={16} />
